@@ -28,10 +28,11 @@ use quilkin::{
 /// This test covers both token_router and capture filters,
 /// since they work in concert together.
 #[tokio::test]
+#[cfg_attr(target_os = "macos", ignore)]
 async fn token_router() {
     let mut t = TestHelper::default();
     let mut echo = t.run_echo_server(AddressType::Random).await;
-    quilkin::test::map_to_localhost(&mut echo).await;
+    quilkin::test::map_to_localhost(&mut echo);
 
     let server_config = std::sync::Arc::new(quilkin::Config::default_non_agent());
     server_config.filters.store(

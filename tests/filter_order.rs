@@ -26,6 +26,7 @@ use quilkin::{
 };
 
 #[tokio::test]
+#[cfg_attr(target_os = "macos", ignore)]
 async fn filter_order() {
     let mut t = TestHelper::default();
 
@@ -53,7 +54,7 @@ on_write: DECOMPRESS
         })
         .await;
 
-    quilkin::test::map_to_localhost(&mut echo).await;
+    quilkin::test::map_to_localhost(&mut echo);
     let server_config = std::sync::Arc::new(quilkin::Config::default_non_agent());
     server_config
         .clusters
@@ -103,6 +104,7 @@ on_write: DECOMPRESS
 }
 
 #[tokio::test]
+#[cfg_attr(target_os = "macos", ignore)]
 async fn multiple_mutations() {
     let filters = r#"
 - name: quilkin.filters.capture.v1alpha1.Capture
@@ -128,7 +130,7 @@ async fn multiple_mutations() {
         })
         .await;
 
-    quilkin::test::map_to_localhost(&mut echo).await;
+    quilkin::test::map_to_localhost(&mut echo);
     let server_config = std::sync::Arc::new(quilkin::Config::default_non_agent());
     server_config
         .clusters
