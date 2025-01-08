@@ -563,12 +563,12 @@
 <span class="kw">use </span>tracing_subscriber::EnvFilter;
 
 <span class="kw">use crate</span>::{
+    collections::BufferPool,
     config::Config,
     filters::{prelude::<span class="kw-2">*</span>, FilterRegistry},
     net::endpoint::metadata::Value,
     net::endpoint::{Endpoint, EndpointAddress},
     net::DualStackEpollSocket <span class="kw">as </span>DualStackLocalSocket,
-    pool::BufferPool,
     ShutdownKind, ShutdownRx, ShutdownTx,
 };
 
@@ -640,7 +640,7 @@
 </span><span class="kw">pub struct </span>TestFilter;
 
 <span class="kw">impl </span>Filter <span class="kw">for </span>TestFilter {
-    <span class="kw">fn </span>read&lt;P: Packet&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ReadContext&lt;<span class="lifetime">'_</span>, P&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), FilterError&gt; {
+    <span class="kw">fn </span>read&lt;P: PacketMut&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ReadContext&lt;<span class="lifetime">'_</span>, P&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), FilterError&gt; {
         <span class="comment">// append values on each run
         </span>ctx.metadata
             .entry(<span class="string">"downstream"</span>.into())
@@ -652,7 +652,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>write&lt;P: Packet&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>WriteContext&lt;P&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), FilterError&gt; {
+    <span class="kw">fn </span>write&lt;P: PacketMut&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>WriteContext&lt;P&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), FilterError&gt; {
         <span class="comment">// append values on each run
         </span>ctx.metadata
             .entry(<span class="string">"upstream"</span>.into())
@@ -895,7 +895,7 @@
     once_cell::sync::Lazy::new(|| Arc::new(BufferPool::default()));
 
 <span class="attr">#[inline]
-</span><span class="kw">pub fn </span>alloc_buffer(data: <span class="kw">impl </span>AsRef&lt;[u8]&gt;) -&gt; <span class="kw">crate</span>::pool::PoolBuffer {
+</span><span class="kw">pub fn </span>alloc_buffer(data: <span class="kw">impl </span>AsRef&lt;[u8]&gt;) -&gt; <span class="kw">crate</span>::collections::PoolBuffer {
     BUFFER_POOL.clone().alloc_slice(data.as_ref())
 }
 
