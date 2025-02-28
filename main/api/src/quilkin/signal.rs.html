@@ -61,10 +61,10 @@
 <span class="doccomment">/// Creates a new handler for shutdown signal (e.g. SIGTERM, SIGINT), and
 /// returns a receiver channel that will receive an event when a shutdown has
 /// been requested.
-</span><span class="kw">pub fn </span>spawn_handler() -&gt; ShutdownRx {
+</span><span class="kw">pub fn </span>spawn_handler() -&gt; (ShutdownTx, ShutdownRx) {
     <span class="kw">let </span>(tx, rx) = channel(ShutdownKind::default());
-    ShutdownKind::spawn_signal_handler(tx);
-    rx
+    ShutdownKind::spawn_signal_handler(tx.clone());
+    (tx, rx)
 }
 
 <span class="kw">pub fn </span>channel(kind: ShutdownKind) -&gt; (ShutdownTx, ShutdownRx) {

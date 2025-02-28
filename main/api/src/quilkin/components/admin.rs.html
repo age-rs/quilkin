@@ -236,7 +236,8 @@
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -274,13 +275,14 @@
 <span class="kw">pub fn </span>server&lt;C&gt;(
     config: Arc&lt;C&gt;,
     ready: Arc&lt;AtomicBool&gt;,
+    shutdown_tx: <span class="kw">crate</span>::signal::ShutdownTx,
     address: <span class="prelude-ty">Option</span>&lt;std::net::SocketAddr&gt;,
 ) -&gt; std::thread::JoinHandle&lt;eyre::Result&lt;()&gt;&gt;
 <span class="kw">where
     </span>C: serde::Serialize + Send + Sync + <span class="lifetime">'static</span>,
 {
     <span class="kw">let </span>address = address.unwrap_or_else(|| (std::net::Ipv6Addr::UNSPECIFIED, PORT).into());
-    <span class="kw">let </span>health = Health::new();
+    <span class="kw">let </span>health = Health::new(shutdown_tx);
     <span class="macro">tracing::info!</span>(address = %address, <span class="string">"Starting admin endpoint"</span>);
 
     std::thread::Builder::new()

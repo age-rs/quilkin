@@ -835,11 +835,11 @@
     ) -&gt; u16 {
         <span class="kw">let </span>(shutdown_tx, shutdown_rx) =
             <span class="kw">crate</span>::signal::channel(<span class="kw">crate</span>::signal::ShutdownKind::Testing);
-        <span class="self">self</span>.server_shutdown_tx.push(<span class="prelude-val">Some</span>(shutdown_tx));
+        <span class="self">self</span>.server_shutdown_tx.push(<span class="prelude-val">Some</span>(shutdown_tx.clone()));
         <span class="kw">let </span>ready = &lt;<span class="kw">_</span>&gt;::default();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(address) = with_admin {
-            <span class="kw">crate</span>::components::admin::server(config.clone(), ready, address);
+            <span class="kw">crate</span>::components::admin::server(config.clone(), ready, shutdown_tx, address);
         }
 
         <span class="kw">let </span>server = server.unwrap_or_else(|| {

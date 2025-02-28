@@ -356,7 +356,11 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -587,11 +591,15 @@
         <span class="kw">let </span>config = <span class="self">self</span>.read_config()<span class="question-mark">?</span>;
 
         <span class="kw">let </span>ready = Arc::&lt;std::sync::atomic::AtomicBool&gt;::default();
+        <span class="kw">let </span>(shutdown_tx, <span class="kw-2">mut </span>shutdown_rx) = <span class="kw">crate</span>::signal::spawn_handler();
         <span class="kw">if </span><span class="self">self</span>.admin.enabled {
-            <span class="kw">crate</span>::components::admin::server(config.clone(), ready.clone(), <span class="self">self</span>.admin.address);
+            <span class="kw">crate</span>::components::admin::server(
+                config.clone(),
+                ready.clone(),
+                shutdown_tx,
+                <span class="self">self</span>.admin.address,
+            );
         }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = <span class="kw">crate</span>::signal::spawn_handler();
 
         <span class="kw">crate</span>::alloc::spawn_heap_stats_updates(
             std::time::Duration::from_secs(<span class="number">10</span>),

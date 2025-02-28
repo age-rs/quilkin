@@ -578,16 +578,7 @@
 <a href="#577" id="577">577</a>
 <a href="#578" id="578">578</a>
 <a href="#579" id="579">579</a>
-<a href="#580" id="580">580</a>
-<a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a>
-<a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a>
-<a href="#589" id="589">589</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#580" id="580">580</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -609,6 +600,7 @@
     time::Duration,
 };
 
+<span class="kw">use </span>eyre::ContextCompat;
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>rand::Rng;
 <span class="kw">use </span>tonic::transport::{Endpoint, Error <span class="kw">as </span>TonicError, channel::Channel <span class="kw">as </span>TonicChannel};
@@ -1033,38 +1025,28 @@
             stream: <span class="kw-2">&amp;mut </span>tonic::Streaming&lt;DeltaDiscoveryResponse&gt;,
             resources: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)])],
         ) -&gt; eyre::Result&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)]&gt; {
-            <span class="kw">let </span>resource_subscriptions = <span class="kw">match </span>stream.message().<span class="kw">await</span><span class="question-mark">? </span>{
+            <span class="kw">match </span>stream.message().<span class="kw">await</span><span class="question-mark">? </span>{
                 <span class="prelude-val">Some</span>(first) =&gt; {
-                    <span class="kw">let </span><span class="kw-2">mut </span>rsubs = <span class="prelude-val">None</span>;
-                    <span class="kw">if </span>first.type_url == <span class="string">"ignore-me" </span>{
-                        <span class="kw">if </span>!first.system_version_info.is_empty() {
-                            rsubs = resources.iter().find_map(|(vers, subs)| {
-                                (<span class="kw-2">*</span>vers == first.system_version_info).then_some(subs)
-                            });
-                        }
-                    } <span class="kw">else </span>{
+                    <span class="kw">if </span>first.type_url != <span class="string">"ignore-me" </span>{
                         <span class="macro">tracing::warn!</span>(<span class="string">"expected `ignore-me` response from management server"</span>);
                     }
 
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(subs) = rsubs {
-                        subs
-                    } <span class="kw">else </span>{
-                        <span class="kw">let </span><span class="prelude-val">Some</span>(subs) = resources
-                            .iter()
-                            .find_map(|(vers, subs)| vers.is_empty().then_some(subs))
-                        <span class="kw">else </span>{
-                            <span class="macro">eyre::bail!</span>(<span class="string">"failed to find fallback resource subscription set"</span>);
-                        };
-
-                        subs
-                    }
+                    resources
+                        .iter()
+                        .find_map(|(vers, subs)| {
+                            (<span class="kw-2">*</span>vers == first.system_version_info).then_some(<span class="kw-2">*</span>subs)
+                        })
+                        .with_context(|| {
+                            <span class="macro">format!</span>(
+                                <span class="string">"failed to find resources with version `{}` to subscribe to"</span>,
+                                first.system_version_info
+                            )
+                        })
                 }
                 <span class="kw">_ </span>=&gt; {
                     <span class="macro">eyre::bail!</span>(<span class="string">"expected at least one response from the management server"</span>);
                 }
-            };
-
-            <span class="prelude-val">Ok</span>(resource_subscriptions)
+            }
         }
 
         <span class="kw">let </span>resource_subscriptions = <span class="kw">match </span>handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await </span>{
