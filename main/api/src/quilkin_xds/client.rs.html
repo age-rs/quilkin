@@ -579,7 +579,15 @@
 <a href="#578" id="578">578</a>
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
-<a href="#581" id="581">581</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -650,10 +658,14 @@
     <span class="kw">async fn </span>connect_to_endpoint(
         endpoint: tonic::transport::Endpoint,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, tonic::transport::Error&gt; {
-        <span class="prelude-val">Ok</span>(AdsGrpcClient::connect(endpoint)
-            .<span class="kw">await</span><span class="question-mark">?
-            </span>.max_decoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size())
-            .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size()))
+        <span class="prelude-val">Ok</span>(AdsGrpcClient::connect(
+            endpoint
+                .tcp_keepalive(<span class="prelude-val">Some</span>(<span class="kw">crate</span>::HTTP2_KEEPALIVE_INTERVAL))
+                .timeout(<span class="kw">crate</span>::HTTP2_KEEPALIVE_TIMEOUT),
+        )
+        .<span class="kw">await</span><span class="question-mark">?
+        </span>.max_decoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size())
+        .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size()))
     }
 
     <span class="kw">async fn </span>stream_requests&lt;S: tonic::IntoStreamingRequest&lt;Message = <span class="self">Self</span>::Request&gt; + Send&gt;(
@@ -672,10 +684,14 @@
     <span class="kw">async fn </span>connect_to_endpoint(
         endpoint: tonic::transport::Endpoint,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, tonic::transport::Error&gt; {
-        <span class="prelude-val">Ok</span>(MdsGrpcClient::connect(endpoint)
-            .<span class="kw">await</span><span class="question-mark">?
-            </span>.max_decoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size())
-            .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size()))
+        <span class="prelude-val">Ok</span>(MdsGrpcClient::connect(
+            endpoint
+                .tcp_keepalive(<span class="prelude-val">Some</span>(<span class="kw">crate</span>::HTTP2_KEEPALIVE_INTERVAL))
+                .timeout(<span class="kw">crate</span>::HTTP2_KEEPALIVE_TIMEOUT),
+        )
+        .<span class="kw">await</span><span class="question-mark">?
+        </span>.max_decoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size())
+        .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size()))
     }
 
     <span class="kw">async fn </span>stream_requests&lt;S: tonic::IntoStreamingRequest&lt;Message = <span class="self">Self</span>::Request&gt; + Send&gt;(
