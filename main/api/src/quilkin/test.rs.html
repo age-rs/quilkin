@@ -536,7 +536,10 @@
 <a href="#535" id="535">535</a>
 <a href="#536" id="536">536</a>
 <a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -579,7 +582,7 @@
             .pretty()
             .with_ansi(<span class="bool-val">false</span>)
             .with_env_filter(filter)
-            .init()
+            .init();
     });
 }
 
@@ -689,14 +692,18 @@
 
 <span class="kw">impl </span>Drop <span class="kw">for </span>TestHelper {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">for </span>shutdown_tx <span class="kw">in </span><span class="self">self</span>.server_shutdown_tx.iter_mut().flat_map(|tx| tx.take()) {
+        <span class="kw">for </span>shutdown_tx <span class="kw">in </span><span class="self">self
+            </span>.server_shutdown_tx
+            .iter_mut()
+            .filter_map(|tx| tx.take())
+        {
             shutdown_tx
                 .send(ShutdownKind::Testing)
                 .map_err(|error| {
                     <span class="macro">tracing::warn!</span>(
                         %error,
                         <span class="string">"Failed to send server shutdown over channel"
-                    </span>)
+                    </span>);
                 })
                 .ok();
         }
@@ -873,14 +880,13 @@
     <span class="doccomment">/// Returns a receiver subscribed to the helper's shutdown event.
     </span><span class="kw">async fn </span>get_shutdown_subscriber(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ShutdownRx {
         <span class="comment">// If this is the first call, then we set up the channel first.
-        </span><span class="kw">match </span><span class="self">self</span>.shutdown_ch {
-            <span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="kw-2">ref </span>rx)) =&gt; rx.clone(),
-            <span class="prelude-val">None </span>=&gt; {
-                <span class="kw">let </span>ch = <span class="kw">crate</span>::signal::channel(ShutdownKind::Testing);
-                <span class="kw">let </span>recv = ch.<span class="number">1</span>.clone();
-                <span class="self">self</span>.shutdown_ch = <span class="prelude-val">Some</span>(ch);
-                recv
-            }
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, rx)) = <span class="kw-2">&amp;</span><span class="self">self</span>.shutdown_ch {
+            rx.clone()
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>ch = <span class="kw">crate</span>::signal::channel(ShutdownKind::Testing);
+            <span class="kw">let </span>recv = ch.<span class="number">1</span>.clone();
+            <span class="self">self</span>.shutdown_ch = <span class="prelude-val">Some</span>(ch);
+            recv
         }
     }
 }

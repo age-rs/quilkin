@@ -359,8 +359,7 @@
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -394,13 +393,12 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>ASN_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"asn"</span>;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>PREFIX_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"ip_prefix"</span>;
 
-<span class="doccomment">/// Label value for [DIRECTION_LABEL] for `read` events
+<span class="doccomment">/// Label value for [`DIRECTION_LABEL`] for `read` events
 </span><span class="kw">pub const </span>READ_DIRECTION_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"read"</span>;
-<span class="doccomment">/// Label value for [DIRECTION_LABEL] for `write` events
+<span class="doccomment">/// Label value for [`DIRECTION_LABEL`] for `write` events
 </span><span class="kw">pub const </span>WRITE_DIRECTION_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"write"</span>;
 
-<span class="doccomment">/// Returns the [prometheus::Registry] containing all the metrics
-/// registered in Quilkin.
+<span class="doccomment">/// Returns the [`Registry`] containing all the metrics registered in Quilkin.
 </span><span class="kw">pub fn </span>registry() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Registry {
     <span class="kw">static </span>REGISTRY: Lazy&lt;Registry&gt; =
         Lazy::new(|| Registry::new_custom(<span class="prelude-val">Some</span>(<span class="string">"quilkin"</span>.into()), <span class="prelude-val">None</span>).unwrap());
@@ -415,7 +413,7 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>BUCKET_FACTOR: f64 = <span class="number">2.0</span>;
 
-<span class="doccomment">/// At an exponential factor of 2.0 (BUCKET_FACTOR), 13 iterations gets us to just over 1 second.
+<span class="doccomment">/// At an exponential factor of 2.0 (`BUCKET_FACTOR`), 13 iterations gets us to just over 1 second.
 /// Any processing that occurs over a second is far too long, so we end bucketing there as we don't
 /// care about granularity past 1 second.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>BUCKET_COUNT: usize = <span class="number">13</span>;
@@ -586,7 +584,7 @@
     PROCESSING_TIME.with_label_values(<span class="kw-2">&amp;</span>[direction.label()])
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bytes_total(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo) -&gt; IntCounter {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bytes_total(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo&lt;<span class="lifetime">'_</span>&gt;) -&gt; IntCounter {
     <span class="kw">static </span>BYTES_TOTAL: Lazy&lt;IntCounterVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_counter_vec_with_registry!</span> {
             <span class="macro">prometheus::opts!</span> {
@@ -602,7 +600,7 @@
     BYTES_TOTAL.with_label_values(<span class="kw-2">&amp;</span>[direction.label(), asn.asn, asn.prefix])
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>errors_total(direction: Direction, display: <span class="kw-2">&amp;</span>str, asn: <span class="kw-2">&amp;</span>AsnInfo) -&gt; IntCounter {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>errors_total(direction: Direction, display: <span class="kw-2">&amp;</span>str, asn: <span class="kw-2">&amp;</span>AsnInfo&lt;<span class="lifetime">'_</span>&gt;) -&gt; IntCounter {
     <span class="kw">static </span>ERRORS_TOTAL: Lazy&lt;IntCounterVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_counter_vec_with_registry!</span> {
             <span class="macro">prometheus::opts!</span> {
@@ -618,7 +616,7 @@
     ERRORS_TOTAL.with_label_values(<span class="kw-2">&amp;</span>[direction.label(), display, asn.asn, asn.prefix])
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>packet_jitter(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo) -&gt; IntGauge {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>packet_jitter(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo&lt;<span class="lifetime">'_</span>&gt;) -&gt; IntGauge {
     <span class="kw">static </span>PACKET_JITTER: Lazy&lt;IntGaugeVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_gauge_vec_with_registry!</span> {
             <span class="macro">prometheus::opts!</span> {
@@ -634,7 +632,7 @@
     PACKET_JITTER.with_label_values(<span class="kw-2">&amp;</span>[direction.label(), asn.asn, asn.prefix])
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>packets_total(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo) -&gt; IntCounter {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>packets_total(direction: Direction, asn: <span class="kw-2">&amp;</span>AsnInfo&lt;<span class="lifetime">'_</span>&gt;) -&gt; IntCounter {
     <span class="kw">static </span>PACKETS_TOTAL: Lazy&lt;IntCounterVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_counter_vec_with_registry!</span> {
             <span class="macro">prometheus::opts!</span> {
@@ -653,7 +651,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>packets_dropped_total(
     direction: Direction,
     source: <span class="kw-2">&amp;</span>str,
-    asn: <span class="kw-2">&amp;</span>AsnInfo,
+    asn: <span class="kw-2">&amp;</span>AsnInfo&lt;<span class="lifetime">'_</span>&gt;,
 ) -&gt; IntCounter {
     <span class="kw">static </span>PACKETS_DROPPED: Lazy&lt;IntCounterVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_counter_vec_with_registry!</span> {
@@ -671,7 +669,7 @@
 }
 
 <span class="doccomment">/// Create a generic metrics options.
-/// Use [filter_opts] instead if the intended target is a filter.
+/// Use `filter_opts` instead if the intended target is a filter.
 </span><span class="kw">pub fn </span>opts(name: <span class="kw-2">&amp;</span>str, subsystem: <span class="kw-2">&amp;</span>str, description: <span class="kw-2">&amp;</span>str) -&gt; Opts {
     Opts::new(name, description).subsystem(subsystem)
 }

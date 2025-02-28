@@ -707,7 +707,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>io_uring_entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Entry {
         io_uring::opcode::Read::new(
             Fd(<span class="self">self</span>.fd.as_raw_fd()),
-            <span class="kw-2">&amp;mut </span><span class="self">self</span>.val <span class="kw">as </span><span class="kw-2">*mut </span>u64 <span class="kw">as </span><span class="kw-2">*mut </span>u8,
+            (<span class="kw-2">&amp;mut </span><span class="self">self</span>.val <span class="kw">as </span><span class="kw-2">*mut </span>u64).cast(),
             <span class="number">8</span>,
         )
         .build()
@@ -734,7 +734,7 @@
 }
 
 <span class="kw">struct </span>RecvPacket {
-    <span class="doccomment">/// The buffer filled with data during recv_from
+    <span class="doccomment">/// The buffer filled with data during `recv_from`
     </span>buffer: PoolBuffer,
     <span class="doccomment">/// The IP of the sender
     </span>source: std::net::SocketAddr,
@@ -786,7 +786,7 @@
                 <span class="comment">// For sends, the length of the buffer is the actual number of initialized bytes,
                 // and note that iov_base is a *mut even though for sends the buffer is not actually
                 // mutated
-                </span><span class="self">self</span>.io_vec.iov_base = send.data.as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u8 <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">_</span>;
+                </span><span class="self">self</span>.io_vec.iov_base = (send.data.as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u8).cast();
                 <span class="self">self</span>.io_vec.iov_len = send.data.len();
 
                 <span class="comment">// SAFETY: both pointers are valid at this point, with the same size
@@ -923,7 +923,7 @@
         <span class="self">self</span>.sq.sync();
     }
 
-    <span class="doccomment">/// Enqueues a recv_from on the socket
+    <span class="doccomment">/// Enqueues a `recv_from` on the socket
     </span><span class="attr">#[inline]
     </span><span class="kw">fn </span>enqueue_recv(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buffer: <span class="kw">crate</span>::collections::PoolBuffer) {
         <span class="kw">let </span>packet = LoopPacketInner::Recv(RecvPacket {
@@ -947,7 +947,7 @@
         );
     }
 
-    <span class="doccomment">/// Enqueues a send_to on the socket
+    <span class="doccomment">/// Enqueues a `send_to` on the socket
     </span><span class="attr">#[inline]
     </span><span class="kw">fn </span>enqueue_send(<span class="kw-2">&amp;mut </span><span class="self">self</span>, packet: SendPacket) {
         <span class="comment">// We rely on sends using state with stable addresses, but realistically we should

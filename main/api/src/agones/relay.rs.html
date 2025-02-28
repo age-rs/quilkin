@@ -398,10 +398,7 @@
 <a href="#397" id="397">397</a>
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#400" id="400">400</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -501,10 +498,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>t = TestHelper::default();
         <span class="kw">let </span>(<span class="kw-2">mut </span>rx, socket) = t.open_socket_and_recv_multiple_packets().<span class="kw">await</span>;
-        socket
-            .send_to(<span class="string">"ALLOCATE"</span>.as_bytes(), gs_address)
-            .<span class="kw">await
-            </span>.unwrap();
+        socket.send_to(<span class="string">b"ALLOCATE"</span>, gs_address).<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>response = timeout(Duration::from_secs(<span class="number">30</span>), rx.recv())
             .<span class="kw">await

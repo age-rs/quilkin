@@ -285,7 +285,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;serde_json::Value, CreationError&gt;;
 
     <span class="doccomment">/// Returns the [`ConfigType`] from the provided Option, otherwise it returns
-    /// Error::MissingConfig if the Option is None.
+    /// [`Error::MissingConfig`] if the Option is None.
     </span><span class="kw">fn </span>require_config(<span class="kw-2">&amp;</span><span class="self">self</span>, config: <span class="prelude-ty">Option</span>&lt;ConfigType&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;ConfigType, CreationError&gt; {
         config.ok_or_else(|| CreationError::MissingConfig(<span class="self">self</span>.name()))
     }

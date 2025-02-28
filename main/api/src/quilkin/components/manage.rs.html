@@ -167,7 +167,7 @@
                 client
                     .delta_stream(config.clone(), ready.relay_is_healthy.clone())
                     .<span class="kw">await
-                    </span>.map_err(|<span class="kw">_</span>| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>,
+                    </span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>,
             )
         } <span class="kw">else </span>{
             <span class="prelude-val">None

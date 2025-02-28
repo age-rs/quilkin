@@ -598,7 +598,7 @@
                             <span class="kw">let </span>_stream = client
                                 .delta_subscribe(config.clone(), xds_is_healthy.clone(), tx, SUBS)
                                 .<span class="kw">await
-                                </span>.map_err(|<span class="kw">_</span>| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>;
+                                </span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>;
 
                             <span class="kw">let _ </span>= shutdown_rx.changed().<span class="kw">await</span>;
                             <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, eyre::Error&gt;(())

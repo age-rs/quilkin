@@ -707,8 +707,7 @@
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1063,8 +1062,7 @@
     <span class="doccomment">/// Returns the packet's nonce.
     </span><span class="kw">pub fn </span>nonce(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u8 {
         <span class="kw">match </span><span class="self">self </span>{
-            Protocol::Ping { nonce, .. } =&gt; <span class="kw-2">*</span>nonce,
-            Protocol::PingReply { nonce, .. } =&gt; <span class="kw-2">*</span>nonce,
+            Protocol::Ping { nonce, .. } | Protocol::PingReply { nonce, .. } =&gt; <span class="kw-2">*</span>nonce,
         }
     }
 

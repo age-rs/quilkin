@@ -239,14 +239,14 @@
 }
 
 <span class="kw">impl</span>&lt;T: Watchable + std::fmt::Debug&gt; Watch&lt;T&gt; {
-    <span class="kw">pub fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ReadGuard&lt;T&gt; {
+    <span class="kw">pub fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ReadGuard&lt;<span class="lifetime">'_</span>, T&gt; {
         ReadGuard {
             inner: <span class="self">self</span>,
             marker: <span class="self">self</span>.value.mark(),
         }
     }
 
-    <span class="kw">pub fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; WatchGuard&lt;T&gt; {
+    <span class="kw">pub fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; WatchGuard&lt;<span class="lifetime">'_</span>, T&gt; {
         WatchGuard {
             inner: <span class="self">self</span>,
             marker: <span class="self">self</span>.value.mark(),
@@ -254,7 +254,7 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>modify&lt;R&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>WatchGuard&lt;T&gt;) -&gt; R) -&gt; R {
+    </span><span class="kw">pub fn </span>modify&lt;R&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>WatchGuard&lt;<span class="lifetime">'_</span>, T&gt;) -&gt; R) -&gt; R {
         (func)(<span class="kw-2">&amp;</span>WatchGuard {
             inner: <span class="self">self</span>,
             marker: <span class="self">self</span>.value.mark(),

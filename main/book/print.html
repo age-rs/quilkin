@@ -198,8 +198,8 @@ proxy. To see a basic usage of the command-line interface run through the
 for deploying quilkin for your game network.</li>
 </ul>
 <pre><code class="language-shell">$ quilkin --help
-{"timestamp":"2025-02-27T18:22:54.646637Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"9e608b1ea5031b54797c1cf2871de304fb6dd3e4"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
-{"timestamp":"2025-02-27T18:22:54.646778Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-02-28T00:23:02.170296Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"578358c83e6278316c359dd374afa2115401ac42"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-02-28T00:23:02.170433Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <p>There are variety of automated and manual methods for installing Quilkin onto
@@ -211,7 +211,7 @@ your local machine through <a href="installation.html#cargo">Cargo</a>.</p>
 <dl>
   <dt><strong>Source / Method</strong></dt>
   <dd>
-<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-9e608b1
+<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-578358c
 </code></pre>
   </dd>
   <dt><strong>Notes</strong></dt>
@@ -1717,7 +1717,7 @@ properties:
     format: uint
     minimum: 0.0
   period:
-    description: The duration in seconds during which max_packets applies. If none is provided, it defaults to one second.
+    description: The duration in seconds during which `max_packets` applies. If none is provided, it defaults to one second.
     type: integer
     format: uint32
     minimum: 0.0
@@ -3005,7 +3005,7 @@ Options:
   -m, --mds-port &lt;MDS_PORT&gt;
           Port for mDS service [env: QUILKIN_MDS_PORT=] [default: 7900]
   -x, --xds-port &lt;XDS_PORT&gt;
-          Port for xDS management_server service [env: QUILKIN_PORT=] [default: 7800]
+          Port for xDS management server service [env: QUILKIN_PORT=] [default: 7800]
       --idle-request-interval-secs &lt;IDLE_REQUEST_INTERVAL_SECS&gt;
           The interval in seconds at which the relay will send a discovery request to an management server after receiving no updates [env: QUILKIN_IDLE_REQUEST_INTERVAL_SECS=]
   -h, --help

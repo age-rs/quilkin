@@ -897,7 +897,7 @@
 <span class="kw">impl </span>ConfigFile {
     <span class="kw">pub fn </span>update(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>TestConfig)) {
         update(<span class="kw-2">&amp;mut </span><span class="self">self</span>.config);
-        <span class="self">self</span>.config.write_to_file(<span class="kw-2">&amp;</span><span class="self">self</span>.path)
+        <span class="self">self</span>.config.write_to_file(<span class="kw-2">&amp;</span><span class="self">self</span>.path);
     }
 }
 
@@ -1408,7 +1408,7 @@
         <span class="kw">match </span>pail {
             Pail::Relay(rp) =&gt; rp.config_file.take().unwrap(),
             Pail::Agent(ap) =&gt; ap.config_file.take().unwrap(),
-            <span class="kw">_ </span>=&gt; <span class="macro">unimplemented!</span>(<span class="string">"no config_file for this pail"</span>),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"no config_file for this pail"</span>),
         }
     }
 
@@ -1433,8 +1433,8 @@
     <span class="doccomment">/// Sleeps for the specified number of milliseconds
     </span><span class="attr">#[inline]
     </span><span class="kw">pub async fn </span>sleep(<span class="kw-2">&amp;</span><span class="self">self</span>, ms: u64) {
-        tokio::time::sleep(std::time::Duration::from_millis(ms)).<span class="kw">await
-    </span>}
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).<span class="kw">await</span>;
+    }
 
     <span class="doccomment">/// Runs a future, expecting it complete before the specified timeout
     </span><span class="attr">#[inline]

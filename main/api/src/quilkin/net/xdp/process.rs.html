@@ -903,9 +903,7 @@
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     components::proxy::{PipelineError, sessions::inner_metrics <span class="kw">as </span>session_metrics},
     filters::{<span class="self">self</span>, Filter <span class="kw">as _</span>},
     metrics::{<span class="self">self</span>, AsnInfo},
@@ -1086,12 +1084,10 @@
 
         (
             port,
-            asn.as_ref()
-                .map(|(ipe, asn)| AsnInfo {
-                    prefix: <span class="kw-2">&amp;</span>ipe.prefix,
-                    asn: asn.as_str(),
-                })
-                .unwrap_or(metrics::EMPTY),
+            asn.as_ref().map_or(metrics::EMPTY, |(ipe, asn)| AsnInfo {
+                prefix: <span class="kw-2">&amp;</span>ipe.prefix,
+                asn: asn.as_str(),
+            }),
             ips,
         )
     }
@@ -1112,7 +1108,7 @@
 }
 
 <span class="doccomment">/// Linux by default only allocates ephemeral ports between 32768..=60999
-/// (see /proc/sys/net/ipv4/ip_local_port_range), so we take advantage and only
+/// (see `/proc/sys/net/ipv4/ip_local_port_range`), so we take advantage and only
 /// allocate ports above that range. Note that we check that this range hasn't
 /// been modified during XDP initialization, if that changes the port mapping
 /// code could cause issues
@@ -1211,7 +1207,7 @@
             <span class="self">self</span>.buckets
                 .get_unchecked_mut(bucket)
                 .get_unchecked_mut(i % BUCKET_SIZE)
-                .set(client_addr)
+                .set(client_addr);
         }
     }
 }

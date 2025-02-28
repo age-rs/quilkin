@@ -130,13 +130,7 @@
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#132" id="132">132</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -185,10 +179,7 @@
         <span class="kw">let </span>t = TestHelper::default();
         <span class="kw">let </span>recv = t.open_socket_and_recv_single_packet().<span class="kw">await</span>;
         <span class="kw">let </span>address = <span class="kw">crate</span>::gameserver_address(<span class="kw-2">&amp;</span>gs);
-        recv.socket
-            .send_to(<span class="string">"hello"</span>.as_bytes(), address)
-            .<span class="kw">await
-            </span>.unwrap();
+        recv.socket.send_to(<span class="string">b"hello"</span>, address).<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>response = timeout(Duration::from_secs(<span class="number">30</span>), recv.packet_rx)
             .<span class="kw">await
@@ -262,10 +253,7 @@ clusters:
         <span class="kw">let </span>t = TestHelper::default();
         <span class="kw">let </span>recv = t.open_socket_and_recv_single_packet().<span class="kw">await</span>;
         <span class="kw">let </span>address = <span class="kw">crate</span>::gameserver_address(<span class="kw-2">&amp;</span>gs);
-        recv.socket
-            .send_to(<span class="string">"hello"</span>.as_bytes(), address)
-            .<span class="kw">await
-            </span>.unwrap();
+        recv.socket.send_to(<span class="string">b"hello"</span>, address).<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>response = timeout(Duration::from_secs(<span class="number">30</span>), recv.packet_rx)
             .<span class="kw">await

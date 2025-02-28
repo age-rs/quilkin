@@ -146,7 +146,7 @@
         <span class="kw">let </span>response = health.check_liveness();
         <span class="macro">assert_eq!</span>(response.status(), StatusCode::OK);
 
-        <span class="kw">let _ </span>= std::panic::catch_unwind(|| {
+        <span class="kw">let </span>_unused = std::panic::catch_unwind(|| {
             <span class="macro">panic!</span>(<span class="string">"oh no!"</span>);
         });
 

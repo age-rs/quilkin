@@ -13,12 +13,12 @@ static or dynamic source.</p>
     TextConfiguration: <a class="trait" href="https://docs.rs/serde/1.0.218/serde/ser/trait.Serialize.html" title="trait serde::ser::Serialize">Serialize</a> + for&lt;'de&gt; <a class="trait" href="https://docs.rs/serde/1.0.218/serde/de/trait.Deserialize.html" title="trait serde::de::Deserialize">Deserialize</a>&lt;'de&gt; + <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;BinaryConfiguration&gt;,
     <a class="enum" href="../filters/enum.CreationError.html" title="enum quilkin::filters::CreationError">CreationError</a>: <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;&lt;BinaryConfiguration as <a class="trait" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.TryInto.html" title="trait core::convert::TryInto">TryInto</a>&lt;TextConfiguration&gt;&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.85.0/core/convert/trait.TryInto.html#associatedtype.Error" title="type core::convert::TryInto::Error">Error</a>&gt;,</div></h4></section></summary><div class="docblock"><p>Deserializes takes two type arguments <code>Static</code> and <code>Dynamic</code> representing
 the types of a static and dynamic configuration respectively.</p>
-<p>If the configuration input is a <a href="enum.ConfigType.html#variant.Static" title="variant quilkin::config::ConfigType::Static">ConfigType::Static</a>, then it is directly
+<p>If the configuration input is a <a href="enum.ConfigType.html#variant.Static" title="variant quilkin::config::ConfigType::Static"><code>ConfigType::Static</code></a>, then it is directly
 deserialized into the returned <code>Static</code> instance.</p>
-<p>Otherwise if the input is a <a href="enum.ConfigType.html#variant.Dynamic" title="variant quilkin::config::ConfigType::Dynamic">ConfigType::Dynamic</a> then the contained Protobuf
+<p>Otherwise if the input is a <a href="enum.ConfigType.html#variant.Dynamic" title="variant quilkin::config::ConfigType::Dynamic"><code>ConfigType::Dynamic</code></a> then the contained Protobuf
 data is decoded into a type <code>Dynamic</code> instance, after which the decoded
 value is converted into the returned <code>Static</code> instance.
-As a result <a href="https://doc.rust-lang.org/1.85.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a> must be implemented from the <code>Dynamic</code> to the <code>Static</code>
+As a result <code>TryFrom</code> must be implemented from the <code>Dynamic</code> to the <code>Static</code>
 type.</p>
 <p>It returns both the deserialized, as well as, a JSON representation
 of the provided config.

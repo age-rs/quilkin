@@ -213,7 +213,7 @@
 <span class="doccomment">/// Representation of an immutable set of bytes pulled from the network, this trait
 /// provides an abstraction over however the packet was received (epoll, io-uring, xdp)
 ///
-/// Use [PacketMut] if you need a mutable representation.
+/// Use [`PacketMut`] if you need a mutable representation.
 </span><span class="kw">pub trait </span>Packet: Sized {
     <span class="doccomment">/// Returns the underlying slice of bytes representing the packet.
     </span><span class="kw">fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8];

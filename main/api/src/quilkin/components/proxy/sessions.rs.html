@@ -747,10 +747,7 @@
 <a href="#746" id="746">746</a>
 <a href="#747" id="747">747</a>
 <a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#749" id="749">749</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1025,21 +1022,18 @@
             .find(|(port, <span class="kw">_</span>)| !socket_set.contains(port))
             .map(|(port, socket)| (<span class="kw-2">*</span>port, socket.clone()));
 
-        <span class="kw">match </span>available_socket {
-            <span class="prelude-val">Some</span>((port, socket)) =&gt; {
-                drop(storage);
-                <span class="self">self</span>.storage
-                    .write()
-                    .destination_to_sockets
-                    .get_mut(<span class="kw-2">&amp;</span>dest)
-                    .ok_or(SessionError::MissingDestinationSocket)<span class="question-mark">?
-                    </span>.insert(port);
-                <span class="self">self</span>.create_session_from_existing_socket(key, socket, port)
-            }
-            <span class="kw">_ </span>=&gt; {
-                drop(storage);
-                <span class="self">self</span>.create_new_session_from_new_socket(key)
-            }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((port, socket)) = available_socket {
+            drop(storage);
+            <span class="self">self</span>.storage
+                .write()
+                .destination_to_sockets
+                .get_mut(<span class="kw-2">&amp;</span>dest)
+                .ok_or(SessionError::MissingDestinationSocket)<span class="question-mark">?
+                </span>.insert(port);
+            <span class="self">self</span>.create_session_from_existing_socket(key, socket, port)
+        } <span class="kw">else </span>{
+            drop(storage);
+            <span class="self">self</span>.create_new_session_from_new_socket(key)
         }
     }
 
@@ -1093,7 +1087,7 @@
         <span class="prelude-val">Ok</span>((asn_metrics_info, pending_sends))
     }
 
-    <span class="doccomment">/// process_recv_packet processes a packet that is received by this session.
+    <span class="doccomment">/// Processes a packet that is received by this session.
     </span><span class="kw">fn </span>process_recv_packet(
         config: Arc&lt;<span class="kw">crate</span>::Config&gt;,
         source: SocketAddr,
@@ -1230,7 +1224,7 @@
 
 <span class="doccomment">/// Session encapsulates a UDP stream session
 </span><span class="kw">pub struct </span>Session {
-    <span class="doccomment">/// created_at is time at which the session was created
+    <span class="doccomment">/// The time at which the session was created
     </span>created_at: Instant,
     <span class="doccomment">/// The source and destination pair.
     </span>key: SessionKey,
@@ -1238,7 +1232,7 @@
     </span>socket_port: u16,
     <span class="doccomment">/// The queue of packets being sent to the upstream (server)
     </span>pending_sends: PacketQueueSender,
-    <span class="doccomment">/// The GeoIP information of the source.
+    <span class="doccomment">/// The `GeoIP` information of the source.
     </span>asn_info: <span class="prelude-ty">Option</span>&lt;IpNetEntry&gt;,
     <span class="doccomment">/// The socket pool of the session.
     </span>pool: Arc&lt;SessionPool&gt;,
@@ -1293,7 +1287,7 @@
 
 <span class="kw">impl </span>Drop <span class="kw">for </span>Session {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.release()
+        <span class="self">self</span>.release();
     }
 }
 
@@ -1447,7 +1441,7 @@
         <span class="kw">let </span>socket1 = pool.get(key1).unwrap();
 
         <span class="kw">let </span>task = tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let _ </span>= socket1;
+            drop(socket1);
         });
 
         <span class="kw">let </span>_socket2 = pool.get(key2).unwrap();
@@ -1472,7 +1466,7 @@
         <span class="kw">let </span>socket1 = pool.get(key1).unwrap();
 
         <span class="kw">let </span>task = tokio::spawn(<span class="kw">async move </span>{
-            <span class="kw">let _ </span>= socket1;
+            drop(socket1);
         });
 
         <span class="kw">let </span>_socket2 = pool.get(key2).unwrap();

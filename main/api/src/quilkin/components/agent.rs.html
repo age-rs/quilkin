@@ -204,7 +204,7 @@
 
                     <span class="comment">// Attempt to connect to a delta stream if the relay has one
                     // available, otherwise fallback to the regular aggregated stream
-                    </span><span class="prelude-val">Some</span>(client.delta_stream(config.clone(), ready.relay_is_healthy.clone()).<span class="kw">await</span>.map_err(|<span class="kw">_</span>| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>)
+                    </span><span class="prelude-val">Some</span>(client.delta_stream(config.clone(), ready.relay_is_healthy.clone()).<span class="kw">await</span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>)
                 }
                 <span class="kw">_ </span>= shutdown_rx.changed() =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
             }

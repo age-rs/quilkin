@@ -251,10 +251,7 @@
 <a href="#250" id="250">250</a>
 <a href="#251" id="251">251</a>
 <a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#253" id="253">253</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -346,10 +343,7 @@
         // let's allocate this specific game server
         </span><span class="kw">let </span><span class="kw-2">mut </span>t = TestHelper::default();
         <span class="kw">let </span>(<span class="kw-2">mut </span>rx, socket) = t.open_socket_and_recv_multiple_packets().<span class="kw">await</span>;
-        socket
-            .send_to(<span class="string">"ALLOCATE"</span>.as_bytes(), gs_address)
-            .<span class="kw">await
-            </span>.unwrap();
+        socket.send_to(<span class="string">b"ALLOCATE"</span>, gs_address).<span class="kw">await</span>.unwrap();
 
         <span class="kw">let </span>response = timeout(SLOW, rx.recv())
             .<span class="kw">await
@@ -425,7 +419,7 @@
             </span>.unwrap();
     }
 
-    <span class="doccomment">/// Creates Quilkin xDS management instance that is in the mode to watch Agones GameServers
+    <span class="doccomment">/// Creates Quilkin xDS management instance that is in the mode to watch Agones `GameServers`
     /// in this test namespace
     </span><span class="kw">async fn </span>agones_control_plane(client: <span class="kw-2">&amp;</span>Client, deployments: Api&lt;Deployment&gt;) {
         <span class="kw">let </span>services: Api&lt;Service&gt; = client.namespaced_api();

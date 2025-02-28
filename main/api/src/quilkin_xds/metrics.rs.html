@@ -139,9 +139,7 @@
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2021 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -172,14 +170,12 @@
     ))
 });
 
-<span class="doccomment">/// Sets the [prometheus::Registry] containing all the metrics
-/// registered in xDS.
+<span class="doccomment">/// Sets the [`Registry`] containing all the metrics registered in xDS.
 </span><span class="kw">pub fn </span>set_registry(registry: std::sync::Arc&lt;Registry&gt;) {
     REGISTRY.store(registry);
 }
 
-<span class="doccomment">/// Returns the [prometheus::Registry] containing all the metrics
-/// registered in xDS.
+<span class="doccomment">/// Returns the [`Registry`] containing all the metrics registered in xDS.
 </span><span class="kw">pub fn </span>registry() -&gt; arc_swap::Guard&lt;std::sync::Arc&lt;Registry&gt;&gt; {
     REGISTRY.load()
 }

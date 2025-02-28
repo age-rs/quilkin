@@ -839,7 +839,7 @@
                         }
 
                         change_watcher.abort();
-                        <span class="kw">let _ </span>= change_watcher.<span class="kw">await</span>;
+                        <span class="kw">let </span>_unused = change_watcher.<span class="kw">await</span>;
                     }
 
                     is_healthy.store(<span class="bool-val">false</span>, Ordering::SeqCst);

@@ -469,7 +469,9 @@
 <a href="#468" id="468">468</a>
 <a href="#469" id="469">469</a>
 <a href="#470" id="470">470</a>
-<a href="#471" id="471">471</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2021 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -629,7 +631,7 @@
     }
 }
 
-<span class="doccomment">/// Invalid min and max values for a [PortRange].
+<span class="doccomment">/// Invalid min and max values for a [`PortRange`].
 </span><span class="attr">#[derive(Debug, thiserror::Error)]
 </span><span class="kw">pub enum </span>PortRangeError {
     <span class="attr">#[error(<span class="string">"invalid port range: min {min:?} is greater than or equal to max {max:?}"</span>)]
@@ -641,8 +643,9 @@
 </span><span class="kw">pub struct </span>PortRange(Range&lt;u16&gt;);
 
 <span class="kw">impl </span>PortRange {
-    <span class="doccomment">/// Creates a new [PortRange], where min is inclusive, max is exclusive.
-    /// [Result] will be a [PortRangeError] if `min &gt;= max`.
+    <span class="doccomment">/// Creates a new [`Self`], where min is inclusive, max is exclusive.
+    ///
+    /// Result will be a [`PortRangeError`] if `min &gt;= max`.
     </span><span class="kw">pub fn </span>new(min: u16, max: u16) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, PortRangeError&gt; {
         <span class="kw">if </span>min &gt;= max {
             <span class="kw">return </span><span class="prelude-val">Err</span>(PortRangeError::InvalidRange { min, max });
@@ -670,7 +673,7 @@
 }
 
 <span class="kw">impl </span>Serialize <span class="kw">for </span>PortRange {
-    <span class="doccomment">/// Serialise the [PortRange] into a single digit if min and max are the same
+    <span class="doccomment">/// Serialise the [`Self`] into a single digit if min and max are the same
     /// otherwise, serialise it to "min-max".
     </span><span class="kw">fn </span>serialize&lt;S&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, serializer: S) -&gt; <span class="prelude-ty">Result</span>&lt;S::Ok, S::Error&gt;
     <span class="kw">where
@@ -688,7 +691,8 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'de</span>&gt; Deserialize&lt;<span class="lifetime">'de</span>&gt; <span class="kw">for </span>PortRange {
     <span class="doccomment">/// Port ranges can be specified in yaml as either "10" as as single value
     /// or as "10-20" as a range, between a minimum and a maximum.
-    /// This deserializes either format into a [PortRange].
+    ///
+    /// This deserializes either format into a [`Self`].
     </span><span class="kw">fn </span>deserialize&lt;D&gt;(deserializer: D) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, D::Error&gt;
     <span class="kw">where
         </span>D: Deserializer&lt;<span class="lifetime">'de</span>&gt;,
@@ -698,7 +702,7 @@
         <span class="kw">impl </span>Visitor&lt;<span class="lifetime">'_</span>&gt; <span class="kw">for </span>PortRangeVisitor {
             <span class="kw">type </span>Value = PortRange;
 
-            <span class="kw">fn </span>expecting(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
+            <span class="kw">fn </span>expecting(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), fmt::Error&gt; {
                 f.write_str(<span class="string">"A port range in the format of '10' or '10-20'"</span>)
             }
 

@@ -378,7 +378,7 @@
     }
 
     <span class="kw">pub fn </span>reset(<span class="kw-2">&amp;mut </span><span class="self">self</span>, versions: VersionMap) {
-        <span class="kw">let _ </span>= std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.versions, versions);
+        drop(std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.versions, versions));
         <span class="self">self</span>.subscribed.clear();
     }
 
@@ -591,17 +591,17 @@
                 }
             }
 
-            <span class="kw">let </span>error_detail = <span class="kw">match </span>result { <span class="prelude-val">Err</span>(error) =&gt; {
+            <span class="kw">let </span>error_detail = <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = result {
                 <span class="kw">crate</span>::metrics::nacks(control_plane_identifier, <span class="kw-2">&amp;</span>type_url).inc();
                 <span class="prelude-val">Some</span>(quilkin_proto::generated::google::rpc::Status {
                     code: <span class="number">3</span>,
                     message: error.to_string(),
                     ..Default::default()
                 })
-            } <span class="kw">_ </span>=&gt; {
+            } <span class="kw">else </span>{
                 <span class="kw">crate</span>::metrics::acks(control_plane_identifier, <span class="kw-2">&amp;</span>type_url).inc();
                 <span class="prelude-val">None
-            </span>}};
+            </span>};
 
             <span class="kw">yield </span>DeltaDiscoveryRequest {
                 type_url,

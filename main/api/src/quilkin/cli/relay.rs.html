@@ -112,7 +112,7 @@
     <span class="doccomment">/// Port for mDS service.
     </span><span class="attr">#[clap(short, long, env = <span class="string">"QUILKIN_MDS_PORT"</span>, default_value_t = PORT)]
     </span><span class="kw">pub </span>mds_port: u16,
-    <span class="doccomment">/// Port for xDS management_server service
+    <span class="doccomment">/// Port for xDS management server service
     </span><span class="attr">#[clap(short, long, env = <span class="kw">super</span>::PORT_ENV_VAR, default_value_t = <span class="kw">super</span>::manage::PORT)]
     </span><span class="kw">pub </span>xds_port: u16,
     <span class="doccomment">/// The interval in seconds at which the relay will send a discovery request

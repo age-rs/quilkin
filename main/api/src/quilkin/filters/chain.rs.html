@@ -527,7 +527,7 @@
 
 <span class="kw">const </span>BUCKET_FACTOR: f64 = <span class="number">2.5</span>;
 
-<span class="doccomment">/// At an exponential factor of 2.5 (BUCKET_FACTOR), 11 iterations gets us to just over half a
+<span class="doccomment">/// At an exponential factor of 2.5 ([`BUCKET_FACTOR`]), 11 iterations gets us to just over half a
 /// second. Any processing that occurs over half a second is far too long, so we end
 /// the bucketing there as we don't care about granularity past this value.
 </span><span class="kw">const </span>BUCKET_COUNT: usize = <span class="number">11</span>;
@@ -611,7 +611,7 @@
     }
 
     <span class="doccomment">/// Validates the filter configurations in the provided config and constructs
-    /// a FilterChain if all configurations are valid, including the conversion
+    /// a [`Self`] if all configurations are valid, including the conversion
     /// into a [`Filter`]
     </span><span class="kw">pub fn </span>try_create_fallible&lt;Item&gt;(
         filter_configs: <span class="kw">impl </span>IntoIterator&lt;Item = Item&gt;,
@@ -635,7 +635,7 @@
     }
 
     <span class="doccomment">/// Validates the filter configurations in the provided config and constructs
-    /// a FilterChain if all configurations are valid.
+    /// a [`Self`] if all configurations are valid.
     </span><span class="kw">pub fn </span>try_create(
         filter_configs: <span class="kw">impl </span>IntoIterator&lt;Item = FilterConfig&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, CreationError&gt; {
@@ -987,7 +987,7 @@
                 config: <span class="prelude-val">None</span>,
             },],
             configs
-        )
+        );
     }
 }
 </code></pre></div></section></main></body></html>

@@ -466,10 +466,10 @@
     </span><span class="kw">fn </span>deserialise_client() {
         <span class="kw">let </span>config = Config::default_non_agent();
         config.dyn_cfg.clusters().unwrap().modify(|clusters| {
-            clusters.insert_default([Endpoint::new(<span class="string">"127.0.0.1:25999"</span>.parse().unwrap())].into())
+            clusters.insert_default([Endpoint::new(<span class="string">"127.0.0.1:25999"</span>.parse().unwrap())].into());
         });
 
-        <span class="kw">let _ </span>= serde_yaml::to_string(<span class="kw-2">&amp;</span>config).unwrap();
+        serde_yaml::to_string(<span class="kw-2">&amp;</span>config).unwrap();
     }
 
     <span class="attr">#[test]
@@ -482,10 +482,10 @@
                     Endpoint::new(<span class="string">"127.0.0.1:26001"</span>.parse().unwrap()),
                 ]
                 .into(),
-            )
+            );
         });
 
-        <span class="kw">let _ </span>= serde_yaml::to_string(<span class="kw-2">&amp;</span>config).unwrap();
+        serde_yaml::to_string(<span class="kw-2">&amp;</span>config).unwrap();
     }
 
     <span class="attr">#[test]
@@ -517,7 +517,7 @@
             <span class="kw-2">&amp;</span>ClusterMap::new_default(
                 [Endpoint::new((std::net::Ipv4Addr::LOCALHOST, <span class="number">25999</span>).into(),)].into()
             )
-        )
+        );
     }
 
     <span class="attr">#[test]
@@ -547,7 +547,7 @@
                 )]
                 .into()
             )
-        )
+        );
     }
 
     <span class="attr">#[test]
