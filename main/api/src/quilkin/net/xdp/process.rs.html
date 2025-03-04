@@ -903,7 +903,8 @@
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     components::proxy::{PipelineError, sessions::inner_metrics <span class="kw">as </span>session_metrics},
     filters::{<span class="self">self</span>, Filter <span class="kw">as _</span>},
     metrics::{<span class="self">self</span>, AsnInfo},
@@ -915,11 +916,12 @@
 };
 <span class="kw">pub use </span>quilkin_xdp::xdp;
 <span class="kw">use </span>quilkin_xdp::xdp::{
-    HeapSlab, Umem,
+    Umem,
     packet::{
         Packet, PacketError, csum,
         net_types::{IpAddresses, NetworkU16, UdpHdr, UdpHeaders},
     },
+    slab::{Slab, StackSlab},
 };
 <span class="kw">use </span>std::{
     collections::hash_map::Entry,
@@ -1350,10 +1352,10 @@
 }
 
 <span class="attr">#[inline]
-</span><span class="kw">pub fn </span>process_packets(
-    rx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+</span><span class="kw">pub fn </span>process_packets&lt;<span class="kw">const </span>RXN: usize, <span class="kw">const </span>TXN: usize&gt;(
+    rx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;RXN&gt;,
     umem: <span class="kw-2">&amp;mut </span>Umem,
-    tx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+    tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
     state: <span class="kw-2">&amp;mut </span>State,
 ) {
     <span class="kw">let </span>filters = state.config.filters.load();
@@ -1364,7 +1366,7 @@
     state.last_receive = now;
     <span class="kw">let </span><span class="kw-2">mut </span>had_read = <span class="bool-val">false</span>;
 
-    <span class="kw">while let </span><span class="prelude-val">Some</span>(buffer) = rx_slab.pop_front() {
+    <span class="kw">while let </span><span class="prelude-val">Some</span>(buffer) = rx_slab.pop_back() {
         <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(headers)) = UdpHeaders::parse_packet(<span class="kw-2">&amp;</span>buffer) <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(
                 <span class="string">"we somehow got a non-UDP packet, this should be impossible with the eBPF program we use to route packets"
@@ -1424,18 +1426,18 @@
 }
 
 <span class="attr">#[inline]
-</span><span class="kw">fn </span>push_packet(
+</span><span class="kw">fn </span>push_packet&lt;<span class="kw">const </span>TXN: usize&gt;(
     direction: metrics::Direction,
     packet: Packet,
     asn: AsnInfo&lt;<span class="lifetime">'_</span>&gt;,
     data_length: usize,
     res: <span class="prelude-ty">Result</span>&lt;(), PacketError&gt;,
-    tx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+    tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
     umem: <span class="kw-2">&amp;mut </span>Umem,
 ) {
     <span class="kw">match </span>res {
         <span class="prelude-val">Ok</span>(()) =&gt; {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(packet) = tx_slab.push_back(packet) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(packet) = tx_slab.push_front(packet) {
                 metrics::packets_dropped_total(direction, <span class="string">"tx slab full"</span>, <span class="kw-2">&amp;</span>metrics::EMPTY).inc();
                 umem.free_packet(packet);
             } <span class="kw">else </span>{
@@ -1453,13 +1455,13 @@
 }
 
 <span class="attr">#[inline]
-</span><span class="kw">fn </span>process_client_packet(
+</span><span class="kw">fn </span>process_client_packet&lt;<span class="kw">const </span>TXN: usize&gt;(
     packet: PacketWrapper,
     umem: <span class="kw-2">&amp;mut </span>Umem,
     filters: <span class="kw-2">&amp;</span>filters::FilterChain,
     cm: <span class="kw-2">&amp;</span><span class="kw">crate</span>::net::ClusterMap,
     state: <span class="kw-2">&amp;mut </span>State,
-    tx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+    tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Packet&gt;, (PipelineError, Packet)&gt; {
     <span class="kw">let </span>source_addr = packet.headers.source_address();
     <span class="kw">let </span><span class="kw-2">mut </span>ctx =
@@ -1564,12 +1566,12 @@
 }
 
 <span class="attr">#[inline]
-</span><span class="kw">fn </span>process_server_packet(
+</span><span class="kw">fn </span>process_server_packet&lt;<span class="kw">const </span>TXN: usize&gt;(
     packet: PacketWrapper,
     umem: <span class="kw-2">&amp;mut </span>Umem,
     filters: <span class="kw-2">&amp;</span><span class="kw">crate</span>::filters::FilterChain,
     state: <span class="kw-2">&amp;mut </span>State,
-    tx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+    tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
     jitter: i64,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Packet&gt;, (PipelineError, Packet)&gt; {
     <span class="kw">let </span>server_addr = packet.headers.source_address();
@@ -1654,11 +1656,11 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>process_qcmp_packet(
+<span class="kw">fn </span>process_qcmp_packet&lt;<span class="kw">const </span>TXN: usize&gt;(
     <span class="kw-2">mut </span>packet: Packet,
     headers: UdpHeaders,
     umem: <span class="kw-2">&amp;mut </span>Umem,
-    tx_slab: <span class="kw-2">&amp;mut </span>HeapSlab,
+    tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
 ) {
     <span class="kw">use crate</span>::{codec::qcmp, time::UtcTimestamp};
 
@@ -1728,7 +1730,7 @@
     <span class="kw">let </span>packet = <span class="kw">if </span>inner(<span class="kw-2">&amp;mut </span>packet, headers) {
         <span class="macro">tracing::debug!</span>(<span class="string">"sending QCMP pong"</span>);
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(packet) = tx_slab.push_back(packet) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(packet) = tx_slab.push_front(packet) {
             <span class="macro">tracing::debug!</span>(<span class="string">"tx slab full, unable to send QCMP pong"</span>);
             packet
         } <span class="kw">else </span>{

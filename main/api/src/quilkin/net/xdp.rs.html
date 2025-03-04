@@ -504,7 +504,8 @@
 <a href="#503" id="503">503</a>
 <a href="#504" id="504">504</a>
 <a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
 
 </span><span class="kw">use </span>quilkin_xdp::xdp::{
     <span class="self">self</span>,
@@ -759,9 +760,8 @@
         <span class="comment">// TODO: This should be done in the type system so we can avoid logic
         // that doesn't change during the course of operation, but for now just
         // do it at runtime
-        </span>tx_metadata: device_caps.tx_metadata.checksum(),
-        <span class="attr">#[cfg(debug_assertions)]
-        </span>software_checksum: <span class="bool-val">false</span>,
+        </span>tx_checksum: device_caps.tx_metadata.checksum(),
+        ..Default::default()
     }
     .build()<span class="question-mark">?</span>;
 
@@ -932,8 +932,10 @@
         last_receive: UtcTimestamp::now(),
     };
 
-    <span class="kw">let </span><span class="kw-2">mut </span>rx_slab = xdp::HeapSlab::with_capacity(BATCH_SIZE);
-    <span class="kw">let </span><span class="kw-2">mut </span>tx_slab = xdp::HeapSlab::with_capacity(BATCH_SIZE * <span class="number">4</span>);
+    <span class="kw">use </span>xdp::slab::Slab;
+
+    <span class="kw">let </span><span class="kw-2">mut </span>rx_slab = xdp::slab::StackSlab::&lt;BATCH_SIZE&gt;::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>tx_slab = xdp::slab::StackSlab::&lt;{ BATCH_SIZE &lt;&lt; <span class="number">2 </span>}&gt;::new();
     <span class="kw">let </span><span class="kw-2">mut </span>pending_sends = <span class="number">0</span>;
 
     <span class="comment">// SAFETY: the cases of unsafe in this code block all concern the relationship
