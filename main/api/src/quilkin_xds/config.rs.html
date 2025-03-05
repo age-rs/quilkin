@@ -305,7 +305,13 @@
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
 <span class="kw">use </span>std::{
     collections::{BTreeSet, HashMap},
     sync::Arc,
@@ -345,11 +351,17 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, ty: <span class="kw-2">&amp;</span>str) -&gt; parking_lot::MutexGuard&lt;<span class="lifetime">'_</span>, HashMap&lt;String, String&gt;&gt; {
-        <span class="self">self</span>.versions
+        <span class="kw">let </span>g = <span class="self">self
+            </span>.versions
             .iter()
-            .find_map(|(t, hm)| (<span class="kw-2">*</span>t == ty).then_some(hm))
-            .unwrap()
-            .lock()
+            .find_map(|(t, hm)| (<span class="kw-2">*</span>t == ty).then_some(hm));
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(ml) = g {
+            ml.lock()
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>versions = <span class="self">self</span>.versions.iter().map(|(ty, <span class="kw">_</span>)| <span class="kw-2">*</span>ty).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            <span class="macro">panic!</span>(<span class="string">"unable to retrieve `{ty}` versions, available versions are {versions:?}"</span>);
+        }
     }
 
     <span class="attr">#[inline]
