@@ -767,7 +767,8 @@
 <a href="#766" id="766">766</a>
 <a href="#767" id="767">767</a>
 <a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -815,19 +816,20 @@
     <span class="kw-2">&amp;</span>ACTIVE_CLUSTERS
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>active_endpoints() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>prometheus::IntGauge {
-    <span class="kw">static </span>ACTIVE_ENDPOINTS: Lazy&lt;prometheus::IntGauge&gt; = Lazy::new(|| {
-        <span class="kw">crate</span>::metrics::register(
-            prometheus::IntGauge::with_opts(<span class="kw">crate</span>::metrics::opts(
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>active_endpoints(cluster: <span class="kw-2">&amp;</span>str) -&gt; prometheus::IntGauge {
+    <span class="kw">static </span>ACTIVE_ENDPOINTS: Lazy&lt;prometheus::IntGaugeVec&gt; = Lazy::new(|| {
+        <span class="macro">prometheus::register_int_gauge_vec_with_registry!</span> {
+            <span class="macro">prometheus::opts!</span> {
                 <span class="string">"active_endpoints"</span>,
-                SUBSYSTEM,
-                <span class="string">"Number of currently active endpoints."</span>,
-            ))
-            .unwrap(),
-        )
+                <span class="string">"Number of currently available endpoints across clusters"</span>,
+            },
+            <span class="kw-2">&amp;</span>[<span class="string">"cluster"</span>],
+            <span class="kw">crate</span>::metrics::registry(),
+        }
+        .unwrap()
     });
 
-    <span class="kw-2">&amp;</span>ACTIVE_ENDPOINTS
+    ACTIVE_ENDPOINTS.with_label_values(<span class="kw-2">&amp;</span>[cluster])
 }
 
 <span class="kw">pub type </span>TokenAddressMap = gxhash::HashMap&lt;u64, gxhash::HashSet&lt;EndpointAddress&gt;&gt;;
