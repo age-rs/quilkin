@@ -734,7 +734,27 @@
 <a href="#733" id="733">733</a>
 <a href="#734" id="734">734</a>
 <a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a></pre></div><pre class="rust"><code><span class="kw">use </span>quilkin::{
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a></pre></div><pre class="rust"><code><span class="kw">use </span>quilkin::{
     Config,
     collections::{BufferPool, PoolBuffer},
     components::{<span class="self">self</span>, RunArgs},
@@ -746,6 +766,8 @@
 <span class="kw">pub use </span>serde_json::json;
 <span class="kw">use </span>std::{net::SocketAddr, num::NonZeroUsize, path::PathBuf, sync::Arc};
 <span class="kw">use </span>tokio::sync::mpsc;
+
+<span class="kw">pub mod </span>xdp_util;
 
 <span class="kw">pub static </span>BUFFER_POOL: once_cell::sync::Lazy&lt;Arc&lt;BufferPool&gt;&gt; =
     once_cell::sync::Lazy::new(|| Arc::new(BufferPool::default()));
@@ -1469,5 +1491,23 @@
             .<span class="kw">await
             </span>.expect_err(<span class="string">"expected future to timeout"</span>);
     }
+}
+
+<span class="attr">#[macro_export]
+</span><span class="macro">macro_rules!</span> filter_chain {
+    ([$(<span class="macro-nonterminal">$kind</span>:ident =&gt; <span class="macro-nonterminal">$filter</span>:expr,)<span class="kw-2">*</span>]) =&gt; {
+        quilkin::filters::FilterChain::testing([
+            $(
+                quilkin::filters::FilterInstance::testing(quilkin::filters::<span class="macro-nonterminal">$kind::testing</span>(<span class="macro-nonterminal">$filter</span>))
+            ),*
+        ])
+    };
+    ([$(<span class="macro-nonterminal">$kind</span>:ident =&gt; <span class="macro-nonterminal">$filter</span>:expr),<span class="kw-2">*</span>]) =&gt; {
+        quilkin::filters::FilterChain::testing([
+            $(
+                quilkin::filters::FilterInstance::testing(quilkin::filters::<span class="macro-nonterminal">$kind::testing</span>(<span class="macro-nonterminal">$filter</span>))
+            ),*
+        ])
+    };
 }
 </code></pre></div></section></main></body></html>

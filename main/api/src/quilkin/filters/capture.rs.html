@@ -276,7 +276,11 @@
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -331,6 +335,10 @@
             is_present_key: <span class="macro">format!</span>(<span class="string">"{}/is_present"</span>, config.metadata_key).into(),
             metadata_key: config.metadata_key,
         }
+    }
+
+    <span class="kw">pub fn </span>testing(config: Config) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new(config)
     }
 }
 

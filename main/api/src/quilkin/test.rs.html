@@ -539,7 +539,13 @@
 <a href="#538" id="538">538</a>
 <a href="#539" id="539">539</a>
 <a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -638,6 +644,12 @@
 
 <span class="comment">// TestFilter is useful for testing that commands are executing filters appropriately.
 </span><span class="kw">pub struct </span>TestFilter;
+
+<span class="kw">impl </span>TestFilter {
+    <span class="kw">pub fn </span>testing(_config: <span class="prelude-ty">Option</span>&lt;()&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self
+    </span>}
+}
 
 <span class="kw">impl </span>Filter <span class="kw">for </span>TestFilter {
     <span class="kw">fn </span>read&lt;P: PacketMut&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ReadContext&lt;<span class="lifetime">'_</span>, P&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), FilterError&gt; {
