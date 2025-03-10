@@ -311,7 +311,17 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
 <span class="kw">use </span>std::{
     collections::{BTreeSet, HashMap},
     sync::Arc,
@@ -334,23 +344,26 @@
         .unwrap_or(<span class="number">256 </span>* <span class="number">1024 </span>* <span class="number">1024</span>)
 }
 
+<span class="kw">pub type </span>VersionMap = HashMap&lt;String, String&gt;;
+<span class="kw">pub type </span>TypeUrl = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
+
 <span class="doccomment">/// Keeps tracking of the local versions of each resource sent from the management
 /// server, allowing reconnections to the same/new management servers to send initial
 /// versions to reduce the initial response size
 </span><span class="kw">pub struct </span>LocalVersions {
-    versions: Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, parking_lot::Mutex&lt;HashMap&lt;String, String&gt;&gt;)&gt;,
+    versions: Vec&lt;(TypeUrl, parking_lot::Mutex&lt;VersionMap&gt;)&gt;,
 }
 
 <span class="kw">impl </span>LocalVersions {
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>new(types: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(types: <span class="kw">impl </span>Iterator&lt;Item = TypeUrl&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             versions: types.map(|ty| (ty, Default::default())).collect(),
         }
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, ty: <span class="kw-2">&amp;</span>str) -&gt; parking_lot::MutexGuard&lt;<span class="lifetime">'_</span>, HashMap&lt;String, String&gt;&gt; {
+    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, ty: <span class="kw-2">&amp;</span>str) -&gt; parking_lot::MutexGuard&lt;<span class="lifetime">'_</span>, VersionMap&gt; {
         <span class="kw">let </span>g = <span class="self">self
             </span>.versions
             .iter()
@@ -365,14 +378,21 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>reset(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="kw">for </span>(<span class="kw">_</span>, map) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.versions {
-            map.lock().clear();
+    </span><span class="kw">pub fn </span>clear&lt;C: <span class="kw">crate</span>::config::Configuration&gt;(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        config: <span class="kw-2">&amp;</span>Arc&lt;C&gt;,
+        remote_addr: <span class="prelude-ty">Option</span>&lt;std::net::IpAddr&gt;,
+    ) {
+        <span class="kw">for </span>(type_url, map) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.versions {
+            <span class="kw">let </span><span class="kw-2">mut </span>map = map.lock();
+            <span class="kw">let </span>remove = map.keys().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = config.apply_delta(type_url, <span class="macro">vec!</span>[], <span class="kw-2">&amp;</span>remove, remote_addr) {
+                <span class="macro">tracing::warn!</span>(%error, count = remove.len(), type_url, <span class="string">"failed to remove resources upon connection loss"</span>);
+            }
+            map.clear();
         }
     }
 }
-
-<span class="kw">pub type </span>VersionMap = HashMap&lt;String, String&gt;;
 
 <span class="kw">pub struct </span>ClientState {
     <span class="kw">pub </span>resource_type: String,
@@ -541,7 +561,7 @@
     local: Arc&lt;LocalVersions&gt;,
     remote_addr: <span class="prelude-ty">Option</span>&lt;std::net::IpAddr&gt;,
     <span class="kw-2">mut </span>notifier: <span class="prelude-ty">Option</span>&lt;tokio::sync::mpsc::UnboundedSender&lt;String&gt;&gt;,
-) -&gt; std::pin::Pin&lt;Box&lt;<span class="kw">dyn </span>futures::Stream&lt;Item = <span class="kw">crate</span>::Result&lt;DeltaDiscoveryRequest&gt;&gt; + Send&gt;&gt; {
+) -&gt; std::pin::Pin&lt;Box&lt;<span class="kw">dyn </span>futures::Stream&lt;Item = tonic::Result&lt;DeltaDiscoveryRequest&gt;&gt; + Send&gt;&gt; {
     Box::pin(<span class="macro">async_stream::try_stream!</span> {
         <span class="kw">let </span>_stream_metrics = <span class="kw">crate</span>::metrics::StreamConnectionMetrics::new(identifier.clone());
         <span class="macro">tracing::trace!</span>(<span class="string">"awaiting delta response"</span>);
@@ -550,7 +570,7 @@
             <span class="kw">let </span>response = <span class="kw">match </span>response {
                 <span class="prelude-val">Ok</span>(response) =&gt; response,
                 <span class="prelude-val">Err</span>(error) =&gt; {
-                    <span class="macro">tracing::warn!</span>(%error, <span class="string">"Error from xDS server"</span>);
+                    <span class="kw">yield </span><span class="prelude-val">Err</span>(error)<span class="question-mark">?</span>;
                     <span class="kw">break</span>;
                 }
             };

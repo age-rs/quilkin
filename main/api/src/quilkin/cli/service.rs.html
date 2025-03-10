@@ -598,7 +598,11 @@
 <a href="#597" id="597">597</a>
 <a href="#598" id="598">598</a>
 <a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
 
 <span class="kw">use crate</span>::{components::proxy::SessionPool, config::Config};
 
@@ -1027,8 +1031,12 @@
         </span>{
             <span class="kw">match </span><span class="self">self</span>.spawn_xdp(config.clone(), <span class="self">self</span>.xdp.force_xdp) {
                 <span class="prelude-val">Ok</span>(xdp) =&gt; {
-                    <span class="self">self</span>.qcmp_enabled = <span class="bool-val">false</span>;
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>((either::Left(std::future::pending()), <span class="prelude-val">Some</span>(xdp), <span class="prelude-val">None</span>));
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(xdp) = xdp {
+                        <span class="self">self</span>.qcmp_enabled = <span class="bool-val">false</span>;
+                        <span class="kw">return </span><span class="prelude-val">Ok</span>((either::Left(std::future::pending()), <span class="prelude-val">Some</span>(xdp), <span class="prelude-val">None</span>));
+                    } <span class="kw">else if </span><span class="self">self</span>.xdp.force_xdp {
+                        <span class="macro">eyre::bail!</span>(<span class="string">"XDP was forced on, but failed to initialize"</span>);
+                    }
                 }
                 <span class="prelude-val">Err</span>(err) =&gt; {
                     <span class="kw">if </span><span class="self">self</span>.xdp.force_xdp {
@@ -1094,13 +1102,13 @@
     }
 
     <span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
-    </span><span class="kw">fn </span>spawn_xdp(<span class="kw-2">&amp;</span><span class="self">self</span>, config: Arc&lt;Config&gt;, force_xdp: bool) -&gt; eyre::Result&lt;Finalizer&gt; {
+    </span><span class="kw">fn </span>spawn_xdp(<span class="kw-2">&amp;</span><span class="self">self</span>, config: Arc&lt;Config&gt;, force_xdp: bool) -&gt; eyre::Result&lt;<span class="prelude-ty">Option</span>&lt;Finalizer&gt;&gt; {
         <span class="kw">use </span><span class="kw">crate</span>::net::xdp;
         <span class="kw">use </span>eyre::{Context <span class="kw">as _</span>, ContextCompat <span class="kw">as _</span>};
 
         <span class="comment">// TODO: remove this once it's been more stabilized
         </span><span class="kw">if </span>!force_xdp {
-            <span class="macro">eyre::bail!</span>(<span class="string">"XDP currently disabled by default"</span>);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         }
 
         <span class="kw">let </span>filters = config
@@ -1135,9 +1143,9 @@
         .context(<span class="string">"failed to setup XDP"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>io_loop = xdp::spawn(workers, config).context(<span class="string">"failed to spawn XDP I/O loop"</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(Box::new(<span class="kw">move </span>|srx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx| {
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Box::new(<span class="kw">move </span>|srx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx| {
             io_loop.shutdown(<span class="kw-2">*</span>srx.borrow() == <span class="kw">crate</span>::signal::ShutdownKind::Normal);
-        }))
+        })))
     }
 }
 

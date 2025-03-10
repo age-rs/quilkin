@@ -1273,13 +1273,7 @@
 <a href="#1272" id="1272">1272</a>
 <a href="#1273" id="1273">1273</a>
 <a href="#1274" id="1274">1274</a>
-<a href="#1275" id="1275">1275</a>
-<a href="#1276" id="1276">1276</a>
-<a href="#1277" id="1277">1277</a>
-<a href="#1278" id="1278">1278</a>
-<a href="#1279" id="1279">1279</a>
-<a href="#1280" id="1280">1280</a>
-<a href="#1281" id="1281">1281</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1275" id="1275">1275</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -2014,7 +2008,9 @@
                 };
 
                 datacenters.modify(|wg| {
-                    wg.remove(removed_resources);
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(ip) = remote_addr.filter(|<span class="kw">_</span>| !removed_resources.is_empty()) {
+                        wg.remove(ip);
+                    }
 
                     <span class="kw">for </span>res <span class="kw">in </span>resources {
                         <span class="kw">let </span><span class="prelude-val">Some</span>(resource) = res.resource <span class="kw">else </span>{
@@ -2210,24 +2206,16 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>remove(<span class="kw-2">&amp;</span><span class="self">self</span>, removed: <span class="kw-2">&amp;</span>[String]) {
-        <span class="kw">if </span>removed.is_empty() {
-            <span class="kw">return</span>;
-        }
-
+    </span><span class="kw">pub fn </span>remove(<span class="kw-2">&amp;</span><span class="self">self</span>, ip: IpAddr) {
         <span class="kw">let </span><span class="kw-2">mut </span>lock = <span class="self">self</span>.removed.lock();
         <span class="kw">let </span><span class="kw-2">mut </span>version = <span class="number">0</span>;
-        <span class="kw">for </span>addr <span class="kw">in </span>removed {
-            <span class="kw">let </span><span class="prelude-val">Ok</span>(ip) = addr.parse() <span class="kw">else </span>{
-                <span class="kw">continue</span>;
-            };
-            <span class="kw">let </span><span class="prelude-val">Some</span>((_k, v)) = <span class="self">self</span>.map.remove(<span class="kw-2">&amp;</span>ip) <span class="kw">else </span>{
-                <span class="kw">continue</span>;
-            };
 
-            lock.push((ip, v.qcmp_port).into());
-            version += <span class="number">1</span>;
-        }
+        <span class="kw">let </span><span class="prelude-val">Some</span>((_k, v)) = <span class="self">self</span>.map.remove(<span class="kw-2">&amp;</span>ip) <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
+
+        lock.push((ip, v.qcmp_port).into());
+        version += <span class="number">1</span>;
 
         <span class="self">self</span>.version.fetch_add(version, Relaxed);
     }
