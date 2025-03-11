@@ -707,7 +707,24 @@
 <a href="#706" id="706">706</a>
 <a href="#707" id="707">707</a>
 <a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -726,6 +743,7 @@
 </span><span class="doccomment">//! Logic for parsing and generating Quilkin Control Message Protocol (QCMP) messages.
 
 </span><span class="kw">use crate</span>::{
+    metrics,
     net::{
         DualStackEpollSocket,
         phoenix::{DistanceMeasure, Measurement},
@@ -914,19 +932,25 @@
             <span class="kw">let </span><span class="kw-2">mut </span>input_buf = [<span class="number">0u8</span>; MAX_QCMP_PACKET_LEN];
             <span class="kw">let </span>socket = DualStackEpollSocket::new(port).unwrap();
             <span class="kw">let </span><span class="kw-2">mut </span>output_buf = QcmpPacket::default();
+            metrics::qcmp::active(<span class="bool-val">true</span>);
 
             <span class="kw">loop </span>{
                 <span class="kw">let </span>result = <span class="macro">tokio::select!</span> {
                     result = socket.recv_from(<span class="kw-2">&amp;mut </span>input_buf) =&gt; result,
-                    <span class="kw">_ </span>= shutdown_rx.changed() =&gt; <span class="kw">return</span>,
+                    <span class="kw">_ </span>= shutdown_rx.changed() =&gt; {
+                        metrics::qcmp::active(<span class="bool-val">false</span>);
+                        <span class="kw">return
+                    </span>}
                 };
-                <span class="kw">match </span>result {
+
+                <span class="kw">match </span>track_error(result) {
                     <span class="prelude-val">Ok</span>((size, source)) =&gt; {
                         <span class="kw">let </span>received_at = UtcTimestamp::now();
-                        <span class="kw">let </span>command = <span class="kw">match </span>Protocol::parse(<span class="kw-2">&amp;</span>input_buf[..size]) {
+                        <span class="kw">let </span>command = <span class="kw">match </span>track_error(Protocol::parse(<span class="kw-2">&amp;</span>input_buf[..size])) {
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(command)) =&gt; command,
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
                                 <span class="macro">tracing::debug!</span>(<span class="string">"rejected non-qcmp packet"</span>);
+                                metrics::qcmp::packets_total_invalid(size);
                                 <span class="kw">continue</span>;
                             }
                             <span class="prelude-val">Err</span>(error) =&gt; {
@@ -941,9 +965,12 @@
                         } = command
                         <span class="kw">else </span>{
                             <span class="macro">tracing::warn!</span>(%source, <span class="string">"rejected unsupported QCMP packet"</span>);
+                            metrics::qcmp::packets_total_unsupported(size);
                             <span class="kw">continue</span>;
                         };
 
+                        metrics::qcmp::packets_total_valid(size);
+                        metrics::qcmp::ingress_latency(client_timestamp, received_at);
                         Protocol::ping_reply(nonce, client_timestamp, received_at)
                             .encode(<span class="kw-2">&amp;mut </span>output_buf);
 
@@ -952,7 +979,7 @@
                             <span class="string">"sending QCMP pong"</span>,
                         );
 
-                        <span class="kw">match </span>socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await </span>{
+                        <span class="kw">match </span>track_error(socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await</span>) {
                             <span class="prelude-val">Ok</span>(len) =&gt; {
                                 <span class="kw">if </span>len != output_buf.len() {
                                     <span class="macro">tracing::error!</span>(%source, <span class="string">"failed to send entire QCMP pong response, expected {} but only sent {len}"</span>, output_buf.len());
@@ -974,6 +1001,13 @@
     );
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>track_error&lt;T, E: std::fmt::Display&gt;(result: <span class="prelude-ty">Result</span>&lt;T, E&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;T, E&gt; {
+    result.inspect_err(|error| {
+        <span class="kw">let </span>reason = error.to_string();
+        metrics::qcmp::errors_total(<span class="kw-2">&amp;</span>reason).inc();
+    })
 }
 
 <span class="doccomment">/// The set of possible QCMP commands.

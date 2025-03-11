@@ -198,8 +198,8 @@ proxy. To see a basic usage of the command-line interface run through the
 for deploying quilkin for your game network.</li>
 </ul>
 <pre><code class="language-shell">$ quilkin --help
-{"timestamp":"2025-03-10T18:23:04.519659Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"c1b816ccf8beb68060cd37b491a147462fb336b3"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
-{"timestamp":"2025-03-10T18:23:04.519792Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-11T12:23:22.607315Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"2981042d0624090740c4a981d112da8d4887a1a5"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-11T12:23:22.607468Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <p>There are variety of automated and manual methods for installing Quilkin onto
@@ -211,7 +211,7 @@ your local machine through <a href="installation.html#cargo">Cargo</a>.</p>
 <dl>
   <dt><strong>Source / Method</strong></dt>
   <dd>
-<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-c1b816c
+<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-2981042
 </code></pre>
   </dd>
   <dt><strong>Notes</strong></dt>
@@ -2156,6 +2156,26 @@ datacentre, and the value being the latency in nanoseconds.</p>
 <li>
 <p><code>quilkin_phoenix_server_errors</code></p>
 <p>The amount of errors attempting to spawn the phoenix HTTP server</p>
+</li>
+<li>
+<p><code>quilkin_service_qcmp_active</code></p>
+<p>Whether the QCMP service is currently running, either 1 for running or 0 for not.</p>
+</li>
+<li>
+<p><code>quilkin_service_qcmp_bytes_total{kind}</code></p>
+<p>Total number of bytes processed through QCMP. <code>kind</code> is either <code>valid</code>, <code>invalid</code>, or <code>unsupported</code>.</p>
+</li>
+<li>
+<p><code>quilkin_service_qcmp_errors_total</code></p>
+<p>Total number of errors QCMP has encountered.</p>
+</li>
+<li>
+<p><code>quilkin_service_qcmp_packets_total{kind}</code></p>
+<p>Total number of packets processed through QCMP. <code>kind</code> is either <code>valid</code>, <code>invalid</code>, or <code>unsupported</code>.</p>
+</li>
+<li>
+<p><code>quilkin_service_qcmp_ingress_latency_seconds</code></p>
+<p>The time from when the client created the packet, to when QCMP received it.</p>
 </li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="proxy-metrics"><a class="header" href="#proxy-metrics">Proxy Metrics</a></h1>

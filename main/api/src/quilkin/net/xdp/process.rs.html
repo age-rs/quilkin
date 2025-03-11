@@ -897,13 +897,7 @@
 <a href="#896" id="896">896</a>
 <a href="#897" id="897">897</a>
 <a href="#898" id="898">898</a>
-<a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a>
-<a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a>
-<a href="#903" id="903">903</a>
-<a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#899" id="899">899</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     components::proxy::{PipelineError, sessions::inner_metrics <span class="kw">as </span>session_metrics},
     filters::{<span class="self">self</span>, Filter <span class="kw">as _</span>},
     metrics::{<span class="self">self</span>, AsnInfo},
@@ -942,12 +936,12 @@
 <span class="kw">impl </span>filters::Packet <span class="kw">for </span>PacketWrapper {
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>as_slice(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.buffer[<span class="self">self</span>.headers.data_offset..<span class="self">self</span>.headers.data_offset + <span class="self">self</span>.headers.data_length]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.buffer[<span class="self">self</span>.headers.data.start..<span class="self">self</span>.headers.data.end]
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.headers.data_length
+        <span class="self">self</span>.headers.data_length()
     }
 }
 
@@ -957,32 +951,31 @@
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>extend_head(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8]) {
         <span class="self">self</span>.buffer
-            .insert(<span class="self">self</span>.headers.data_offset, bytes)
+            .insert(<span class="self">self</span>.headers.data.start, bytes)
             .expect(<span class="string">"failed to extend head"</span>);
-        <span class="self">self</span>.headers.data_length += bytes.len();
+        <span class="self">self</span>.headers.data.end += bytes.len();
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>extend_tail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw-2">&amp;</span>[u8]) {
-        <span class="self">self</span>.buffer
-            .insert(<span class="self">self</span>.buffer.len(), bytes)
-            .expect(<span class="string">"failed to extend head"</span>);
-        <span class="self">self</span>.headers.data_length += bytes.len();
+        <span class="self">self</span>.buffer.append(bytes).expect(<span class="string">"failed to extend head"</span>);
+        <span class="self">self</span>.headers.data.end += bytes.len();
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>remove_head(<span class="kw-2">&amp;mut </span><span class="self">self</span>, length: usize) {
         <span class="kw">let </span><span class="kw-2">mut </span>data = [<span class="number">0u8</span>; <span class="number">2048</span>];
 
-        <span class="kw">if </span>length &gt; <span class="self">self</span>.headers.data_length || length == <span class="number">0 </span>{
+        <span class="kw">if </span>length &gt; <span class="self">self</span>.headers.data_length() || length == <span class="number">0 </span>{
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(slice) = <span class="self">self</span>.buffer.get(
-            <span class="self">self</span>.headers.data_offset + length..<span class="self">self</span>.headers.data_offset + <span class="self">self</span>.headers.data_length,
-        ) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(slice) = <span class="self">self
+            </span>.buffer
+            .get(<span class="self">self</span>.headers.data.start + length..<span class="self">self</span>.headers.data.end)
+        <span class="kw">else </span>{
             <span class="kw">if </span><span class="self">self</span>.buffer.adjust_tail(-(length <span class="kw">as </span>i32)).is_ok() {
-                <span class="self">self</span>.headers.data_length -= length;
+                <span class="self">self</span>.headers.data.end -= length;
             }
             <span class="kw">return</span>;
         };
@@ -991,21 +984,21 @@
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(slice) = <span class="self">self
             </span>.buffer
-            .get_mut(<span class="self">self</span>.headers.data_offset..<span class="self">self</span>.headers.data_offset + remainder)
+            .get_mut(<span class="self">self</span>.headers.data.start..<span class="self">self</span>.headers.data.start + remainder)
         <span class="kw">else </span>{
             <span class="kw">return</span>;
         };
         slice.copy_from_slice(<span class="kw-2">&amp;</span>data[..remainder]);
 
         <span class="kw">if </span><span class="self">self</span>.buffer.adjust_tail(-(length <span class="kw">as </span>i32)).is_ok() {
-            <span class="self">self</span>.headers.data_length -= length;
+            <span class="self">self</span>.headers.data.end -= length;
         }
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">fn </span>remove_tail(<span class="kw-2">&amp;mut </span><span class="self">self</span>, length: usize) {
         <span class="kw">if </span><span class="self">self</span>.buffer.adjust_tail(-(length <span class="kw">as </span>i32)).is_ok() {
-            <span class="self">self</span>.headers.data_length -= length;
+            <span class="self">self</span>.headers.data.end -= length;
         }
     }
 
@@ -1476,18 +1469,18 @@
         <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(packet.buffer));
     };
 
-    <span class="kw">let </span>data = <span class="kw-2">&amp;</span>packet.buffer
-        [packet.headers.data_offset..packet.headers.data_offset + packet.headers.data_length];
+    <span class="kw">let </span>data = <span class="kw-2">&amp;</span>packet.buffer[packet.headers.data];
 
     <span class="comment">// TODO: We _could_ be more clever with this and do a running checksum calculation
     // as the packet data is modified by the filters, but for now we just do the
     // full checksum for the sake of simplicity
-    </span><span class="kw">let </span>data_checksum = csum::partial(data, <span class="number">0</span>);
+    </span><span class="kw">let </span>data_checksum = csum::DataChecksum::calculate_if_needed(data, <span class="kw-2">&amp;</span>packet.buffer);
+    <span class="kw">let </span>data_length = data.len();
 
     <span class="kw">let </span>eth = packet.headers.eth.swapped();
 
     <span class="comment">// If we have more than 1 destination we need to clone the packet data to
-    // a new packet for each destination, only modifying
+    // a new packet for each destination, only modifying the headers
     </span><span class="kw">if </span>!state.destinations.is_empty() {
         <span class="kw">while let </span><span class="prelude-val">Some</span>(daddr) = state.destinations.pop() {
             <span class="kw">let </span><span class="prelude-val">Ok</span>(dest_addr) = daddr.to_socket_addr() <span class="kw">else </span>{
@@ -1504,8 +1497,7 @@
                     check: <span class="number">0</span>,
                     length: NetworkU16(<span class="number">0</span>),
                 },
-                data_offset: packet.headers.data_offset,
-                data_length: packet.headers.data_length,
+                data: packet.headers.data,
             };
 
             <span class="comment">// SAFETY: the umem outlives the frame
@@ -1521,7 +1513,7 @@
                 metrics::Direction::Read,
                 new_packet,
                 asn,
-                packet.headers.data_length,
+                data_length,
                 res,
                 tx_slab,
                 umem,
@@ -1543,18 +1535,17 @@
             check: <span class="number">0</span>,
             length: NetworkU16(<span class="number">0</span>),
         },
-        data_offset: packet.headers.data_offset,
-        data_length: packet.headers.data_length,
+        data: packet.headers.data,
     };
 
-    headers.calc_checksum(data.len(), data_checksum);
+    headers.calc_checksum(data_checksum);
 
     <span class="kw">let </span>res = modify_packet_headers(<span class="kw-2">&amp;</span>packet.headers, <span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;mut </span>packet.buffer);
     push_packet(
         metrics::Direction::Read,
         packet.buffer,
         asn,
-        packet.headers.data_length,
+        data_length,
         res,
         tx_slab,
         umem,
@@ -1600,8 +1591,7 @@
             length: NetworkU16(<span class="number">0</span>),
             check: <span class="number">0</span>,
         },
-        data_offset: packet.headers.data_offset,
-        data_length: packet.headers.data_length,
+        data: packet.headers.data,
     };
 
     <span class="kw">let </span>res = modify_packet_headers(<span class="kw-2">&amp;</span>packet.headers, <span class="kw-2">&amp;mut </span>headers, <span class="kw-2">&amp;mut </span>packet.buffer);
@@ -1613,7 +1603,7 @@
         metrics::Direction::Write,
         packet.buffer,
         asn,
-        packet.headers.data_length,
+        packet.headers.data_length(),
         res,
         tx_slab,
         umem,
@@ -1635,7 +1625,7 @@
         (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {}
     }
 
-    new.set_packet_headers(packet, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+    new.set_packet_headers(packet)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -1643,13 +1633,13 @@
 </span><span class="kw">fn </span>fill_packet(
     headers: <span class="kw-2">&amp;mut </span>UdpHeaders,
     data: <span class="kw-2">&amp;</span>[u8],
-    data_checksum: u32,
+    data_checksum: csum::DataChecksum,
     frame: <span class="kw-2">&amp;mut </span>Packet,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), PacketError&gt; {
     <span class="kw">let </span>hdr_len = headers.header_length();
     frame.adjust_tail(hdr_len <span class="kw">as </span>i32)<span class="question-mark">?</span>;
-    headers.calc_checksum(data.len(), data_checksum);
-    headers.set_packet_headers(frame, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
+    headers.calc_checksum(data_checksum);
+    headers.set_packet_headers(frame)<span class="question-mark">?</span>;
     frame.insert(hdr_len, data)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
@@ -1664,8 +1654,7 @@
 
     <span class="kw">fn </span>inner(packet: <span class="kw-2">&amp;mut </span>Packet, headers: UdpHeaders) -&gt; bool {
         <span class="kw">let </span>received_at = UtcTimestamp::now();
-        <span class="kw">let </span><span class="prelude-val">Some</span>(data) = packet.get(headers.data_offset..headers.data_offset + headers.data_length)
-        <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(data) = packet.get(headers.data.start..headers.data.end) <span class="kw">else </span>{
             <span class="macro">tracing::debug!</span>(<span class="string">"corrupt UDP packet, data payload is out of range"</span>);
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
@@ -1693,23 +1682,22 @@
         <span class="kw">let </span><span class="kw-2">mut </span>ob = qcmp::QcmpPacket::default();
         <span class="kw">let </span>buf = qcmp::Protocol::ping_reply(nonce, client_timestamp, received_at).encode(<span class="kw-2">&amp;mut </span>ob);
 
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = packet.adjust_tail(-(headers.data_length <span class="kw">as </span>i32)) {
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = packet.adjust_tail(-(headers.data_length() <span class="kw">as </span>i32)) {
             <span class="macro">tracing::debug!</span>(%error, <span class="string">"unable to trim QCMP ping data"</span>);
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = packet.insert(headers.data_offset, buf) {
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = packet.insert(headers.data.start, buf) {
             <span class="macro">tracing::debug!</span>(%error, <span class="string">"unable to write QCMP pong data"</span>);
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>new = UdpHeaders {
-            eth: headers.eth.swapped(),
-            ip: headers.ip.swapped(),
-            udp: headers.udp.swapped(),
-            data_offset: headers.data_offset,
-            data_length: buf.len(),
-        };
+        <span class="kw">let </span><span class="kw-2">mut </span>new = UdpHeaders::new(
+            headers.eth.swapped(),
+            headers.ip.swapped(),
+            headers.udp.swapped(),
+            headers.data.start..headers.data.start + buf.len(),
+        );
         new.decrement_hop();
 
         <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = modify_packet_headers(<span class="kw-2">&amp;</span>headers, <span class="kw-2">&amp;mut </span>new, packet) {
@@ -1755,28 +1743,28 @@
         v6.reset(<span class="number">64</span>, nt::IpProto::Udp);
         v6.source = [<span class="number">13</span>; <span class="number">16</span>];
         v6.destination = [<span class="number">8</span>; <span class="number">16</span>];
-        <span class="kw">let </span><span class="kw-2">mut </span>headers = UdpHeaders {
-            eth: nt::EthHdr {
+        <span class="kw">let </span><span class="kw-2">mut </span>headers = UdpHeaders::new(
+            nt::EthHdr {
                 source: nt::MacAddress([<span class="number">1</span>; <span class="number">6</span>]),
                 destination: nt::MacAddress([<span class="number">2</span>; <span class="number">6</span>]),
                 ether_type: nt::EtherType::Ipv6,
             },
-            ip: nt::IpHdr::V6(v6),
-            udp: UdpHdr {
+            nt::IpHdr::V6(v6),
+            UdpHdr {
                 source: <span class="number">22</span>.into(),
                 destination: <span class="number">20021</span>.into(),
                 length: NetworkU16(<span class="number">0</span>),
                 check: <span class="number">0</span>,
             },
-            data_offset: nt::EthHdr::LEN + nt::Ipv6Hdr::LEN + nt::UdpHdr::LEN,
-            data_length: payload.len(),
-        };
+            nt::EthHdr::LEN + nt::Ipv6Hdr::LEN + nt::UdpHdr::LEN
+                ..nt::EthHdr::LEN + nt::Ipv6Hdr::LEN + nt::UdpHdr::LEN + payload.len(),
+        );
 
         <span class="kw">let </span><span class="kw-2">mut </span>data = [<span class="number">0u8</span>; <span class="number">2048</span>];
         <span class="kw">let </span><span class="kw-2">mut </span>buffer = xdp::Packet::testing_new(<span class="kw-2">&amp;mut </span>data);
-        buffer.adjust_tail(headers.data_offset <span class="kw">as _</span>).unwrap();
-        headers.set_packet_headers(<span class="kw-2">&amp;mut </span>buffer, <span class="bool-val">false</span>).unwrap();
-        buffer.insert(headers.data_offset, <span class="kw-2">&amp;</span>payload).unwrap();
+        buffer.adjust_tail(headers.data.start <span class="kw">as _</span>).unwrap();
+        headers.set_packet_headers(<span class="kw-2">&amp;mut </span>buffer).unwrap();
+        buffer.insert(headers.data.start, <span class="kw-2">&amp;</span>payload).unwrap();
         buffer.calc_udp_checksum().unwrap();
 
         <span class="kw">let </span><span class="kw-2">mut </span>wrapper = PacketWrapper { buffer, headers };
@@ -1790,7 +1778,7 @@
             wrapper.extend_head(HEAD);
             <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>wrapper.as_slice()[..HEAD.len()], HEAD);
             <span class="macro">assert_eq!</span>(wrapper.as_slice()[HEAD.len()..], payload);
-            <span class="macro">assert_eq!</span>(wrapper.headers.data_length, payload.len() + HEAD.len());
+            <span class="macro">assert_eq!</span>(wrapper.headers.data_length(), payload.len() + HEAD.len());
             wrapper.remove_head(HEAD.len());
         }
 
@@ -1801,7 +1789,7 @@
             wrapper.extend_tail(TAIL);
             <span class="macro">assert_eq!</span>(wrapper.as_slice()[..payload.len()], payload);
             <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>wrapper.as_slice()[payload.len()..], TAIL);
-            <span class="macro">assert_eq!</span>(wrapper.headers.data_length, payload.len() + TAIL.len());
+            <span class="macro">assert_eq!</span>(wrapper.headers.data_length(), payload.len() + TAIL.len());
             wrapper.remove_tail(TAIL.len());
         }
 
