@@ -223,7 +223,37 @@
 <a href="#222" id="222">222</a>
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -250,9 +280,25 @@
 <span class="kw">use </span>agones::GameServer;
 
 <span class="kw">use crate</span>::{
-    config,
+    config, metrics,
     net::{ClusterMap, endpoint::Locality},
 };
+
+<span class="kw">const </span>CONFIGMAP: <span class="kw-2">&amp;</span>str = <span class="string">"v1/ConfigMap"</span>;
+<span class="kw">const </span>GAMESERVER: <span class="kw-2">&amp;</span>str = <span class="string">"agones.dev/v1/GameServer"</span>;
+
+<span class="kw">fn </span>track_event&lt;T&gt;(kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, event: Event&lt;T&gt;) -&gt; Event&lt;T&gt; {
+    <span class="kw">let </span>ty = <span class="kw">match </span><span class="kw-2">&amp;</span>event {
+        Event::Apply(<span class="kw">_</span>) =&gt; <span class="string">"apply"</span>,
+        Event::Init =&gt; <span class="string">"init"</span>,
+        Event::InitApply(<span class="kw">_</span>) =&gt; <span class="string">"init-apply"</span>,
+        Event::InitDone =&gt; <span class="string">"init-done"</span>,
+        Event::Delete(<span class="kw">_</span>) =&gt; <span class="string">"done"</span>,
+    };
+
+    metrics::k8s::events_total(kind, ty).inc();
+    event
+}
 
 <span class="kw">pub fn </span>update_filters_from_configmap(
     client: kube::Client,
@@ -267,12 +313,13 @@
             <span class="kw">let </span>event = <span class="kw">match </span>event {
                 <span class="prelude-val">Ok</span>(event) =&gt; event,
                 <span class="prelude-val">Err</span>(error) =&gt; {
+                    metrics::k8s::errors_total(CONFIGMAP, <span class="kw-2">&amp;</span>error).inc();
                     <span class="kw">yield </span><span class="prelude-val">Err</span>(error.into());
                     <span class="kw">continue</span>;
                 }
             };
 
-            <span class="kw">let </span>configmap = <span class="kw">match </span>event {
+            <span class="kw">let </span>configmap = <span class="kw">match </span>track_event(CONFIGMAP, event) {
                 Event::Apply(configmap) =&gt; configmap,
                 Event::Init =&gt; { <span class="kw">yield </span><span class="prelude-val">Ok</span>(()); <span class="kw">continue</span>; }
                 Event::InitApply(configmap) =&gt; {
@@ -291,6 +338,7 @@
                     }
                 }
                 Event::Delete(<span class="kw">_</span>) =&gt; {
+                    metrics::k8s::filters(<span class="bool-val">false</span>);
                     filters.remove();
                     <span class="kw">yield </span><span class="prelude-val">Ok</span>(());
                     <span class="kw">continue</span>;
@@ -307,6 +355,7 @@
                     .map(serde_json::from_value)
                     .transpose()<span class="question-mark">?
             </span>{
+                metrics::k8s::filters(<span class="bool-val">true</span>);
                 filters.store(Arc::new(de_filters));
             }
 
@@ -364,12 +413,13 @@
 
         <span class="kw">for await </span>event <span class="kw">in </span>gameserver_events(client, namespace) {
             <span class="kw">let </span>ads = address_selector.as_ref();
-            <span class="kw">match </span>event<span class="question-mark">? </span>{
+            <span class="kw">match </span>track_event(GAMESERVER, event<span class="question-mark">?</span>) {
                 Event::Apply(result) =&gt; {
                     <span class="kw">let </span>server = <span class="kw">match </span>result.<span class="number">0 </span>{
                         <span class="prelude-val">Ok</span>(server) =&gt; server,
                         <span class="prelude-val">Err</span>(error) =&gt; {
                             <span class="macro">tracing::debug!</span>(%error, <span class="string">"couldn't decode gameserver event"</span>);
+                            metrics::k8s::errors_total(GAMESERVER, <span class="kw-2">&amp;</span>error);
                             <span class="kw">continue</span>;
                         }
                     };
@@ -377,15 +427,18 @@
                     <span class="macro">tracing::debug!</span>(<span class="string">"received applied event from k8s"</span>);
                     <span class="kw">if </span>!server.is_allocated() {
                         <span class="kw">yield </span><span class="prelude-val">Ok</span>(());
+                        metrics::k8s::gameservers_total_unallocated();
                         <span class="macro">tracing::debug!</span>(<span class="string">"skipping unallocated server"</span>);
                         <span class="kw">continue</span>;
                     }
 
                     <span class="kw">let </span><span class="prelude-val">Some</span>(endpoint) = server.endpoint(ads) <span class="kw">else </span>{
+                        metrics::k8s::gameservers_total_invalid();
                         <span class="macro">tracing::warn!</span>(selector=<span class="question-mark">?</span>ads, <span class="string">"received invalid gameserver to apply from k8s"</span>);
                         <span class="kw">continue</span>;
                     };
                     <span class="macro">tracing::debug!</span>(endpoint=%serde_json::to_value(<span class="kw-2">&amp;</span>endpoint).unwrap(), <span class="string">"Adding endpoint"</span>);
+                    metrics::k8s::gameservers_total_valid();
                     clusters.write()
                         .replace(locality.clone(), endpoint);
                 }
@@ -401,8 +454,13 @@
 
                     <span class="kw">if </span>server.is_allocated() {
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(ep) = server.endpoint(ads) {
+                            metrics::k8s::gameservers_total_valid();
                             servers.insert(ep);
+                        } <span class="kw">else </span>{
+                            metrics::k8s::gameservers_total_invalid();
                         }
+                    } <span class="kw">else </span>{
+                        metrics::k8s::gameservers_total_unallocated();
                     }
                 }
                 Event::InitDone =&gt; {
@@ -419,6 +477,7 @@
                     <span class="kw">let </span>server = <span class="kw">match </span>result.<span class="number">0 </span>{
                         <span class="prelude-val">Ok</span>(server) =&gt; server,
                         <span class="prelude-val">Err</span>(error) =&gt; {
+                            metrics::k8s::errors_total(GAMESERVER, <span class="kw-2">&amp;</span>error);
                             <span class="macro">tracing::debug!</span>(%error, <span class="string">"couldn't decode gameserver event"</span>);
                             <span class="kw">continue</span>;
                         }
@@ -433,6 +492,7 @@
                         })
                     };
 
+                    metrics::k8s::gameservers_deletions_total(found);
                     <span class="kw">if </span>!found {
                         <span class="macro">tracing::debug!</span>(
                             endpoint=%serde_json::to_value(server.endpoint(ads)).unwrap(),

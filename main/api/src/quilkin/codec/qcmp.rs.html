@@ -724,7 +724,12 @@
 <a href="#723" id="723">723</a>
 <a href="#724" id="724">724</a>
 <a href="#725" id="725">725</a>
-<a href="#726" id="726">726</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -943,14 +948,16 @@
                     </span>}
                 };
 
-                <span class="kw">match </span>track_error(result) {
+                <span class="kw">match </span>track_error(result, <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo::EMPTY) {
                     <span class="prelude-val">Ok</span>((size, source)) =&gt; {
                         <span class="kw">let </span>received_at = UtcTimestamp::now();
-                        <span class="kw">let </span>command = <span class="kw">match </span>track_error(Protocol::parse(<span class="kw-2">&amp;</span>input_buf[..size])) {
+                        <span class="kw">let </span>ip_entry = <span class="kw">crate</span>::net::maxmind_db::MaxmindDb::lookup(source.ip()).map(<span class="kw">crate</span>::net::maxmind_db::MetricsIpNetEntry::from);
+                        <span class="kw">let </span>asn_info = <span class="kw">crate</span>::metrics::AsnInfo::from(ip_entry.as_ref());
+                        <span class="kw">let </span>command = <span class="kw">match </span>track_error(Protocol::parse(<span class="kw-2">&amp;</span>input_buf[..size]), <span class="kw-2">&amp;</span>asn_info) {
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(command)) =&gt; command,
                             <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
                                 <span class="macro">tracing::debug!</span>(<span class="string">"rejected non-qcmp packet"</span>);
-                                metrics::qcmp::packets_total_invalid(size);
+                                metrics::qcmp::packets_total_invalid(size, <span class="kw-2">&amp;</span>asn_info);
                                 <span class="kw">continue</span>;
                             }
                             <span class="prelude-val">Err</span>(error) =&gt; {
@@ -965,12 +972,12 @@
                         } = command
                         <span class="kw">else </span>{
                             <span class="macro">tracing::warn!</span>(%source, <span class="string">"rejected unsupported QCMP packet"</span>);
-                            metrics::qcmp::packets_total_unsupported(size);
+                            metrics::qcmp::packets_total_unsupported(size, <span class="kw-2">&amp;</span>asn_info);
                             <span class="kw">continue</span>;
                         };
 
-                        metrics::qcmp::packets_total_valid(size);
-                        metrics::qcmp::ingress_latency(client_timestamp, received_at);
+                        metrics::qcmp::packets_total_valid(size, <span class="kw-2">&amp;</span>asn_info);
+                        metrics::qcmp::ingress_latency(client_timestamp, received_at, <span class="kw-2">&amp;</span>asn_info);
                         Protocol::ping_reply(nonce, client_timestamp, received_at)
                             .encode(<span class="kw-2">&amp;mut </span>output_buf);
 
@@ -979,7 +986,7 @@
                             <span class="string">"sending QCMP pong"</span>,
                         );
 
-                        <span class="kw">match </span>track_error(socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await</span>) {
+                        <span class="kw">match </span>track_error(socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await</span>, <span class="kw-2">&amp;</span>asn_info) {
                             <span class="prelude-val">Ok</span>(len) =&gt; {
                                 <span class="kw">if </span>len != output_buf.len() {
                                     <span class="macro">tracing::error!</span>(%source, <span class="string">"failed to send entire QCMP pong response, expected {} but only sent {len}"</span>, output_buf.len());
@@ -1003,10 +1010,13 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>track_error&lt;T, E: std::fmt::Display&gt;(result: <span class="prelude-ty">Result</span>&lt;T, E&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;T, E&gt; {
+<span class="kw">fn </span>track_error&lt;T, E: std::fmt::Display&gt;(
+    result: <span class="prelude-ty">Result</span>&lt;T, E&gt;,
+    asn_info: <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo&lt;<span class="lifetime">'_</span>&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;T, E&gt; {
     result.inspect_err(|error| {
         <span class="kw">let </span>reason = error.to_string();
-        metrics::qcmp::errors_total(<span class="kw-2">&amp;</span>reason).inc();
+        metrics::qcmp::errors_total(<span class="kw-2">&amp;</span>reason, asn_info).inc();
     })
 }
 
