@@ -737,7 +737,7 @@
         <span class="kw">static </span>METRIC: Lazy&lt;IntCounterVec&gt; = Lazy::new(|| {
             <span class="macro">prometheus::register_int_counter_vec_with_registry!</span> {
                 <span class="macro">prometheus::opts!</span> {
-                    <span class="string">"provider_k8s_events_total"</span>,
+                    <span class="string">"provider_k8s_gameservers_deletions_total"</span>,
                     <span class="string">"Total number of gameserver applied deletion events by `success` (either `true` or `false`) "</span>,
                 },
                 <span class="kw-2">&amp;</span>[<span class="string">"kind"</span>],
