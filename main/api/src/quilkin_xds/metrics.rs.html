@@ -138,7 +138,8 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2021 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -174,6 +175,7 @@
 
 <span class="doccomment">/// Returns the [`Registry`] containing all the metrics registered in xDS.
 </span><span class="attr">#[inline]
+#[track_caller]
 </span><span class="kw">pub fn </span>registry() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Registry {
     <span class="kw">unsafe </span>{ REGISTRY }.expect(<span class="string">"set_registry must be called"</span>)
 }
