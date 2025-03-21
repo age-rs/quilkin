@@ -360,7 +360,10 @@
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -605,6 +608,9 @@
             std::time::Duration::from_secs(<span class="number">10</span>),
             shutdown_rx.clone(),
         );
+
+        <span class="comment">// Just call this early so there isn't a potential race when spawning xDS
+        </span>quilkin_xds::metrics::set_registry(<span class="kw">crate</span>::metrics::registry());
 
         <span class="kw">let </span>locality = <span class="self">self</span>.locality.locality();
         <span class="self">self</span>.providers

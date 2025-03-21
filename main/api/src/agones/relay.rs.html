@@ -509,7 +509,7 @@
 
         <span class="kw">let </span>config_map = create_token_router_config(<span class="kw-2">&amp;</span>config_maps).<span class="kw">await</span>;
         <span class="kw">let </span>(relay_name, agent_names) =
-            agones_agent_deployment(<span class="kw-2">&amp;</span>client, deployments.clone(), relay, agent, <span class="number">3</span>, id).<span class="kw">await</span>;
+            agones_agent_deployment(<span class="kw-2">&amp;</span>client, deployments.clone(), relay, agent, <span class="number">1</span>, id).<span class="kw">await</span>;
 
         <span class="kw">let </span>relay_proxy_name = <span class="macro">format!</span>(<span class="string">"quilkin-relay-proxy-{id}"</span>);
         <span class="kw">let </span>proxy_address = quilkin_proxy_deployment(

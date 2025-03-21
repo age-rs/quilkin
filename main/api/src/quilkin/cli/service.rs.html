@@ -602,9 +602,7 @@
 <a href="#601" id="601">601</a>
 <a href="#602" id="602">602</a>
 <a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
+<a href="#604" id="604">604</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
 
 <span class="kw">use crate</span>::{components::proxy::SessionPool, config::Config};
 
@@ -852,8 +850,6 @@
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
         shutdown_rx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx,
     ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;<span class="kw">crate</span>::Result&lt;()&gt;&gt;&gt; {
-        quilkin_xds::metrics::set_registry(<span class="kw">crate</span>::metrics::registry());
-
         <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = shutdown_rx.clone();
         <span class="kw">let </span>mds_task = <span class="self">self</span>.publish_mds(config)<span class="question-mark">?</span>;
         <span class="kw">let </span>(phoenix_task, phoenix_finalizer) = <span class="self">self</span>.publish_phoenix(config)<span class="question-mark">?</span>;
