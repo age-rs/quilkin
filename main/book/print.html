@@ -185,6 +185,72 @@ depending on how deep an integration you wish for your system.</li>
 <li>Integration with Game Server hosting platforms such as <a href="https://agones.dev">Agones</a>.</li>
 <li>Can be integrated with C/C++ code bases via FFI.</li>
 </ul>
+<h2 id="quilkin-architecture"><a class="header" href="#quilkin-architecture">Quilkin Architecture</a></h2>
+<p>Quilkin is broken up into three main components</p>
+<ul>
+<li><strong>Providers</strong> are data collection sources to enable quilkin to see its environment.</li>
+<li><strong>Services</strong> provide the the core business logic for handling UDP traffic as well meta control-plane functionality.</li>
+<li><strong>Configuration</strong> controls what a given instance is able to do, what services it runs, and providers it pulls from.</li>
+</ul>
+<pre><code class="language-mermaid">architecture-beta
+    group services(cloud)[Services]
+    group public(cloud)[Public Client API] in services
+    group private(cloud)[Internal Service API] in services
+    group providers(cloud)[Providers]
+    group config(cloud)[Configuration]
+
+    service udp(internet)[UDP] in public
+    service qcmp(internet)[QCMP UDP] in public
+    junction sp1 in services
+    junction sp3 in services
+
+    service metrics(internet)[Administration] in private
+    service grpc(internet)[gRPC] in private
+    service http(internet)[HTTP] in private
+    junction sp2 in services
+    junction sp4 in services
+
+    service k8s(cloud)[Kubernetes] in providers
+    service fs(disk)[Filesystem] in providers
+    service xds(cloud)[gRPC] in providers
+    service cli(disk)[CLI] in providers
+    junction p1 in providers
+    junction p2 in providers
+
+    service filters(disk)[Filterchains] in config
+    service endpoints(disk)[Endpoints] in config
+    service gameservers(server)[Game Servers] in config
+    service mmdb(server)[Maxmind DB] in config
+    junction c1 in config
+    junction c2 in config
+
+    service quilkin(server)[Quilkin]
+
+    sp1:T -- R:udp
+    sp1:L -- R:qcmp
+    sp1:B -- T:sp3
+
+    sp2:T -- B:sp3
+    sp2:L -- R:grpc
+    sp2:B -- R:metrics
+    sp4:L -- R:metrics
+    sp4:B -- R:http
+    sp4:T -- B:sp2
+    sp3:R -- L:quilkin
+
+    quilkin:R -- L:p1
+    p1:T -- L:fs
+    p1:R -- L:k8s
+    p1:B -- T:p2
+    p2:R -- L:xds
+    p2:B -- L:cli
+    c2:L -- R:mmdb
+    c2:R -- L:gameservers
+    c1:T -- B:c2
+    c1:R -- L:endpoints
+    c1:L -- R:filters
+    c1:B -- T:quilkin
+</code></pre>
 <h2 id="what-next"><a class="header" href="#what-next">What Next?</a></h2>
 <p>Quilkin provides a variety of different services depending on your use-case.
 The primary service is <a href="./services/proxy.html"><code>proxy</code></a>, which runs a reverse UDP
@@ -198,8 +264,8 @@ proxy. To see a basic usage of the command-line interface run through the
 for deploying quilkin for your game network.</li>
 </ul>
 <pre><code class="language-shell">$ quilkin --help
-{"timestamp":"2025-03-22T00:23:04.691660Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"e9ef98eea1bb515d17872de0b6fd21b08179e9d7"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
-{"timestamp":"2025-03-22T00:23:04.691788Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-24T18:23:02.561615Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"50791cfdb5187f91770663e8a504f7679a48555b"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-24T18:23:02.561744Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <p>There are variety of automated and manual methods for installing Quilkin onto
@@ -211,7 +277,7 @@ your local machine through <a href="installation.html#cargo">Cargo</a>.</p>
 <dl>
   <dt><strong>Source / Method</strong></dt>
   <dd>
-<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-e9ef98e
+<pre><code>us-docker.pkg.dev/quilkin/release/quilkin:0.10.0-dev-50791cf
 </code></pre>
   </dd>
   <dt><strong>Notes</strong></dt>
@@ -916,100 +982,6 @@ proxies will route to the Allocated GameServer, and you can play a gamee!</p>
 </div>
 <p>"Proxy" is the primary Quilkin service, which acts as a non-transparent UDP
 proxy.</p>
-<p>To view all the options for the <code>proxy</code> subcommand, run:</p>
-<pre><code class="language-shell">$ quilkin proxy --help
-Run Quilkin as a UDP reverse proxy
-
-Usage: quilkin proxy [OPTIONS]
-
-Options:
-  -m, --management-server &lt;MANAGEMENT_SERVER&gt;
-          One or more `quilkin manage` endpoints to listen to for config changes
-          
-          [env: QUILKIN_MANAGEMENT_SERVER=]
-
-      --mmdb &lt;MMDB&gt;
-          The remote URL or local file path to retrieve the Maxmind database
-          
-          [env: MMDB=]
-
-  -p, --port &lt;PORT&gt;
-          The port to listen on
-          
-          [env: QUILKIN_PORT=]
-          [default: 7777]
-
-  -q, --qcmp-port &lt;QCMP_PORT&gt;
-          The port to listen on
-          
-          [env: QUILKIN_QCMP_PORT=]
-          [default: 7600]
-
-      --to &lt;TO&gt;
-          One or more socket addresses to forward packets to
-          
-          [env: QUILKIN_DEST=]
-
-      --to-tokens &lt;TO_TOKENS&gt;
-          Assigns dynamic tokens to each address in the `--to` argument
-          
-          Format is `&lt;number of unique tokens&gt;:&lt;length of token suffix for each packet&gt;`
-          
-          [env: QUILKIN_DEST_TOKENS=]
-
-      --idle-request-interval-secs &lt;IDLE_REQUEST_INTERVAL_SECS&gt;
-          The interval in seconds at which the relay will send a discovery request to an management server after receiving no updates
-          
-          [env: QUILKIN_IDLE_REQUEST_INTERVAL_SECS=]
-
-  -w, --workers &lt;WORKERS&gt;
-          Number of worker threads used to process packets.
-          
-          If not specified defaults to number of cpus. Has no effect if XDP is used, as the number of workers is always the same as the NIC queue size.
-          
-          [env: QUILKIN_WORKERS=]
-
-      --service.udp.xdp.network-interface &lt;NETWORK_INTERFACE&gt;
-          The name of the network interface to bind the XDP socket(s) to.
-          
-          If not specified quilkin will attempt to determine the most appropriate network interface to use. Quilkin will exit with an error if the network interface does not exist, or a suitable default cannot be determined.
-          
-          [env: QUILKIN_SERVICE_UDP_XDP_NETWORK_INTERFACE=]
-
-      --service.udp.xdp
-          Forces the use of XDP.
-          
-          If XDP is not available on the chosen NIC, Quilkin exits with an error. If false, io-uring will be used as the fallback implementation.
-          
-          [env: QUILKIN_SERVICE_UDP_XDP=]
-
-      --service.udp.xdp.zerocopy
-          Forces the use of [`XDP_ZEROCOPY`](https://www.kernel.org/doc/html/latest/networking/af_xdp.html#xdp-copy-and-xdp-zerocopy-bind-flags)
-          
-          If zero copy is not available on the chosen NIC, Quilkin exits with an error
-          
-          [env: QUILKIN_SERVICE_UDP_XDP_ZEROCOPY=]
-
-      --service.udp.xdp.tco
-          Forces the use of [TX checksum offload](https://docs.kernel.org/6.8/networking/xsk-tx-metadata.html)
-          
-          TX checksum offload is an optional feature allowing the data portion of a packet to have its internet checksum calculation offloaded to the NIC, as otherwise this is done in software
-          
-          [env: QUILKIN_SERVICE_UDP_XDP_TCO=]
-
-      --service.udp.xdp.memory-limit &lt;MAXIMUM_MEMORY&gt;
-          The maximum amount of memory mapped for packet buffers, in bytes
-          
-          If not specified, this defaults to 4MiB (2k allocated packets of 2k each at a time) per NIC queue, ie 128MiB on a 32 queue NIC
-          
-          [env: QUILKIN_SERVICE_UDP_XDP_MEMORY_LIMIT=]
-
-      --termination-timeout &lt;TERMINATION_TIMEOUT&gt;
-          
-
-  -h, --help
-          Print help (see a summary with '-h')
-</code></pre>
 <h2 id="endpoints"><a class="header" href="#endpoints">Endpoints</a></h2>
 <p>An Endpoint represents an address that Quilkin forwards packets to that it has received from the
 source port.</p>
@@ -1060,6 +1032,44 @@ that Quilkin proxies traffic to.</p>
 <p>Sessions are established <em>after</em> the filter chain completes. The destination Endpoint of a packet is determined by
 the <a href="services/./proxy/filters.html">filter chain</a>, so a Session can only be created after filter chain completion. For example, if the
 filter chain drops all packets, then no session will ever be created.</p>
+<h2 id="diagram"><a class="header" href="#diagram">Diagram</a></h2>
+<pre><code class="language-mermaid">architecture-beta
+    group player(cloud)[Player]
+
+    service game(cloud)[Game] in player
+
+    game{group}:B --&gt; T:ioj{group}
+
+    group udpstack(cloud)[Quilkin Stack]
+    group services(server)[Service Layer] in udpstack
+
+    service providers(cloud)[Providers] in udpstack
+    service config(disk)[Configuration] in udpstack
+
+    providers:L --&gt; R:config
+    config:T --&gt; B:fc{group}
+
+    group bizlayer(cloud)[Packet Processing] in services
+    service fc(server)[Filter Chain] in bizlayer
+    service prefilters(server)[preprocessing] in bizlayer
+    service postfilters(server)[postprocessing] in bizlayer
+
+    prefilters:R --&gt; L:fc
+    fc:R --&gt; L:postfilters
+
+    group iolayer(cloud)[UDP layer] in services
+    service xdp(server)[XDP] in iolayer
+    service iouring(server)[io uring] in iolayer
+    junction ioj in iolayer
+    xdp:R -- L:ioj
+    iouring:L -- R:ioj
+    ioj:B --&gt; T:fc{group}
+
+    group gs(cloud)[Game Servers]
+    service gameserver(cloud)[Game Server] in gs
+
+    postfilters{group}:R --&gt; L:gameserver
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="configuration-file"><a class="header" href="#configuration-file">Configuration File</a></h1>
 <p>While much of Quilkin's proxy configuration can be configured via its
 <a href="services/proxy/../proxy.html">command line interface</a>, if you have a larger or more complex configuration

@@ -184,6 +184,72 @@ depending on how deep an integration you wish for your system.</li>
 <li>Integration with Game Server hosting platforms such as <a href="https://agones.dev">Agones</a>.</li>
 <li>Can be integrated with C/C++ code bases via FFI.</li>
 </ul>
+<h2 id="quilkin-architecture"><a class="header" href="#quilkin-architecture">Quilkin Architecture</a></h2>
+<p>Quilkin is broken up into three main components</p>
+<ul>
+<li><strong>Providers</strong> are data collection sources to enable quilkin to see its environment.</li>
+<li><strong>Services</strong> provide the the core business logic for handling UDP traffic as well meta control-plane functionality.</li>
+<li><strong>Configuration</strong> controls what a given instance is able to do, what services it runs, and providers it pulls from.</li>
+</ul>
+<pre><code class="language-mermaid">architecture-beta
+    group services(cloud)[Services]
+    group public(cloud)[Public Client API] in services
+    group private(cloud)[Internal Service API] in services
+    group providers(cloud)[Providers]
+    group config(cloud)[Configuration]
+
+    service udp(internet)[UDP] in public
+    service qcmp(internet)[QCMP UDP] in public
+    junction sp1 in services
+    junction sp3 in services
+
+    service metrics(internet)[Administration] in private
+    service grpc(internet)[gRPC] in private
+    service http(internet)[HTTP] in private
+    junction sp2 in services
+    junction sp4 in services
+
+    service k8s(cloud)[Kubernetes] in providers
+    service fs(disk)[Filesystem] in providers
+    service xds(cloud)[gRPC] in providers
+    service cli(disk)[CLI] in providers
+    junction p1 in providers
+    junction p2 in providers
+
+    service filters(disk)[Filterchains] in config
+    service endpoints(disk)[Endpoints] in config
+    service gameservers(server)[Game Servers] in config
+    service mmdb(server)[Maxmind DB] in config
+    junction c1 in config
+    junction c2 in config
+
+    service quilkin(server)[Quilkin]
+
+    sp1:T -- R:udp
+    sp1:L -- R:qcmp
+    sp1:B -- T:sp3
+
+    sp2:T -- B:sp3
+    sp2:L -- R:grpc
+    sp2:B -- R:metrics
+    sp4:L -- R:metrics
+    sp4:B -- R:http
+    sp4:T -- B:sp2
+    sp3:R -- L:quilkin
+
+    quilkin:R -- L:p1
+    p1:T -- L:fs
+    p1:R -- L:k8s
+    p1:B -- T:p2
+    p2:R -- L:xds
+    p2:B -- L:cli
+    c2:L -- R:mmdb
+    c2:R -- L:gameservers
+    c1:T -- B:c2
+    c1:R -- L:endpoints
+    c1:L -- R:filters
+    c1:B -- T:quilkin
+</code></pre>
 <h2 id="what-next"><a class="header" href="#what-next">What Next?</a></h2>
 <p>Quilkin provides a variety of different services depending on your use-case.
 The primary service is <a href="./services/proxy.html"><code>proxy</code></a>, which runs a reverse UDP
@@ -197,8 +263,8 @@ proxy. To see a basic usage of the command-line interface run through the
 for deploying quilkin for your game network.</li>
 </ul>
 <pre><code class="language-shell">$ quilkin --help
-{"timestamp":"2025-03-22T00:23:04.691660Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"e9ef98eea1bb515d17872de0b6fd21b08179e9d7"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
-{"timestamp":"2025-03-22T00:23:04.691788Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-24T18:23:02.561615Z","level":"INFO","fields":{"message":"Starting Quilkin","version":"0.10.0-dev","commit":"50791cfdb5187f91770663e8a504f7679a48555b"},"target":"quilkin::cli","filename":"src/cli.rs","threadId":"ThreadId(1)"}
+{"timestamp":"2025-03-24T18:23:02.561744Z","level":"ERROR","fields":{"message":"fatal error","error":"no service specified, shutting down","error_debug":"no service specified, shutting down"},"target":"quilkin","filename":"src/main.rs","threadId":"ThreadId(1)"}
 </code></pre>
 
                     </main>
