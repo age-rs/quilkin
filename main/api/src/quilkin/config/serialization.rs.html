@@ -408,11 +408,11 @@
                     <span class="macro">tracing::trace!</span>(len = cmd.endpoints.len(), <span class="string">"replacing clusters"</span>);
                     clusters.modify(|clusters| {
                         <span class="kw">for </span>cluster <span class="kw">in </span>cmd.endpoints {
-                            clusters.insert(cluster.locality, cluster.endpoints);
+                            clusters.insert(<span class="prelude-val">None</span>, cluster.locality, cluster.endpoints);
                         }
 
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(locality) = locality.take() {
-                            clusters.update_unlocated_endpoints(locality);
+                            clusters.update_unlocated_endpoints(<span class="prelude-val">None</span>, locality);
                         }
                     });
                     <span class="self">self</span>.apply_metrics();

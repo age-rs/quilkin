@@ -137,7 +137,7 @@
         };
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(locality) = <span class="kw-2">&amp;</span><span class="self">self</span>.locality {
-            clusters.modify(|map| map.update_unlocated_endpoints(locality.clone()));
+            clusters.modify(|map| map.update_unlocated_endpoints(<span class="prelude-val">None</span>, locality.clone()));
         }
 
         <span class="kw">let </span>provider_task = <span class="kw">match </span><span class="self">self</span>.provider {

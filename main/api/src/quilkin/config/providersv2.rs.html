@@ -840,7 +840,7 @@
             <span class="string">"setting endpoints"
         </span>);
         config.clusters.modify(|clusters| {
-            clusters.insert(<span class="prelude-val">None</span>, endpoints);
+            clusters.insert(<span class="prelude-val">None</span>, <span class="prelude-val">None</span>, endpoints);
         });
 
         health_check.store(<span class="bool-val">true</span>, Ordering::SeqCst);

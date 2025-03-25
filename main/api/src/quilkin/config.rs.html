@@ -1272,8 +1272,7 @@
 <a href="#1271" id="1271">1271</a>
 <a href="#1272" id="1272">1272</a>
 <a href="#1273" id="1273">1273</a>
-<a href="#1274" id="1274">1274</a>
-<a href="#1275" id="1275">1275</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1274" id="1274">1274</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -2069,7 +2068,7 @@
                         </span>} <span class="kw">else </span>{
                             <span class="prelude-val">Some</span>(removed.parse()<span class="question-mark">?</span>)
                         };
-                        guard.remove_locality(<span class="kw-2">&amp;</span>locality);
+                        guard.remove_locality(remote_addr, <span class="kw-2">&amp;</span>locality);
                     }
 
                     <span class="kw">for </span>res <span class="kw">in </span>resources {
@@ -2106,8 +2105,7 @@
                         );
 
                         <span class="kw">let </span>locality = cluster.locality.map(<span class="kw">crate</span>::net::endpoint::Locality::from);
-
-                        guard.apply(locality, endpoints);
+                        guard.apply(remote_addr, locality, endpoints)<span class="question-mark">?</span>;
                     }
 
                     <span class="prelude-val">Ok</span>(())

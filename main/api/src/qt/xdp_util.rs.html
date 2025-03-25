@@ -230,7 +230,7 @@
     endpoints: std::collections::BTreeSet&lt;quilkin::net::Endpoint&gt;,
 ) -&gt; process::ConfigState {
     <span class="kw">let </span>cm = quilkin::net::ClusterMap::new();
-    cm.insert(<span class="prelude-val">None</span>, endpoints);
+    cm.insert(<span class="prelude-val">None</span>, <span class="prelude-val">None</span>, endpoints);
 
     process::ConfigState {
         filters: quilkin::config::Slot::new(filters),

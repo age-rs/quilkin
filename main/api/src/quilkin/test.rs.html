@@ -545,7 +545,8 @@
 <a href="#544" id="544">544</a>
 <a href="#545" id="545">545</a>
 <a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -989,6 +990,7 @@
     <span class="kw">pub fn </span>with_dummy_endpoint() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>config = <span class="self">Self</span>::default();
         config.clusters.insert(
+            <span class="prelude-val">None</span>,
             <span class="prelude-val">None</span>,
             [Endpoint::new((std::net::Ipv4Addr::LOCALHOST, <span class="number">8080</span>).into())].into(),
         );

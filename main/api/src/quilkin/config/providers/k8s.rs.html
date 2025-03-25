@@ -440,7 +440,7 @@
                     <span class="macro">tracing::debug!</span>(endpoint=%serde_json::to_value(<span class="kw-2">&amp;</span>endpoint).unwrap(), <span class="string">"Adding endpoint"</span>);
                     metrics::k8s::gameservers_total_valid();
                     clusters.write()
-                        .replace(locality.clone(), endpoint);
+                        .replace(<span class="prelude-val">None</span>, locality.clone(), endpoint);
                 }
                 Event::Init =&gt; {},
                 Event::InitApply(result) =&gt; {
@@ -471,7 +471,7 @@
                         <span class="string">"Restarting with endpoints"
                     </span>);
 
-                    clusters.write().insert(locality.clone(), std::mem::take(<span class="kw-2">&amp;mut </span>servers));
+                    clusters.write().insert(<span class="prelude-val">None</span>, locality.clone(), std::mem::take(<span class="kw-2">&amp;mut </span>servers));
                 }
                 Event::Delete(result) =&gt; {
                     <span class="kw">let </span>server = <span class="kw">match </span>result.<span class="number">0 </span>{
