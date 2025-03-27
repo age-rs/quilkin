@@ -589,7 +589,27 @@
 <a href="#588" id="588">588</a>
 <a href="#589" id="589">589</a>
 <a href="#590" id="590">590</a>
-<a href="#591" id="591">591</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -816,7 +836,12 @@
         config: Arc&lt;C&gt;,
         is_healthy: Arc&lt;AtomicBool&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;DeltaSubscription, <span class="self">Self</span>&gt; {
+        <span class="kw">const </span>LEADERSHIP_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(<span class="number">1</span>);
         <span class="kw">let </span>identifier = String::from(<span class="kw-2">&amp;*</span><span class="self">self</span>.identifier);
+
+        <span class="kw">while </span>config.is_leader() == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+            tokio::time::sleep(LEADERSHIP_CHECK_INTERVAL).<span class="kw">await</span>;
+        }
 
         <span class="kw">let </span>(<span class="kw-2">mut </span>ds, <span class="kw-2">mut </span>stream) =
             <span class="kw">match </span>DeltaServerStream::connect(<span class="self">self</span>.client.clone(), identifier.clone()).<span class="kw">await </span>{
@@ -836,6 +861,12 @@
                 <span class="macro">tracing::trace!</span>(<span class="string">"starting relay client delta stream task"</span>);
 
                 <span class="kw">loop </span>{
+                    <span class="kw">if </span>config.is_leader() == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                        <span class="macro">tracing::debug!</span>(<span class="string">"not leader, delaying task"</span>);
+                        tokio::time::sleep(LEADERSHIP_CHECK_INTERVAL).<span class="kw">await</span>;
+                        <span class="kw">continue</span>;
+                    }
+
                     {
                         <span class="kw">let </span>control_plane = <span class="kw">super</span>::server::ControlPlane::from_arc(
                             config.clone(),
@@ -851,7 +882,16 @@
                         <span class="kw">let </span><span class="kw-2">mut </span>stream = control_plane.delta_aggregated_resources(stream).<span class="kw">await</span><span class="question-mark">?</span>;
                         is_healthy.store(<span class="bool-val">true</span>, Ordering::SeqCst);
 
-                        <span class="kw">while let </span><span class="prelude-val">Some</span>(result) = stream.next().<span class="kw">await </span>{
+                        <span class="kw">loop </span>{
+                            <span class="kw">if </span>config.is_leader() == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                                <span class="macro">tracing::warn!</span>(<span class="string">"lost leader lock mid-stream, disconnecting"</span>);
+                                <span class="kw">break</span>;
+                            }
+
+                            <span class="kw">let </span><span class="prelude-val">Some</span>(result) = stream.next().<span class="kw">await else </span>{
+                                <span class="kw">break</span>;
+                            };
+
                             <span class="kw">let </span>response = result<span class="question-mark">?</span>;
                             <span class="macro">tracing::trace!</span>(<span class="string">"received delta discovery response"</span>);
                             ds.send_response(response).<span class="kw">await</span><span class="question-mark">?</span>;

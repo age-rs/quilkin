@@ -253,7 +253,34 @@
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -276,6 +303,7 @@
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>k8s_openapi::api::core::v1::ConfigMap;
 <span class="kw">use </span>kube::{core::DeserializeGuard, runtime::watcher::Event};
+<span class="kw">use </span>kube_leader_election::{LeaseLock, LeaseLockParams};
 
 <span class="kw">use </span>agones::GameServer;
 
@@ -300,6 +328,32 @@
     event
 }
 
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>update_leader_lock(
+    client: kube::Client,
+    namespace: <span class="kw">impl </span>AsRef&lt;str&gt;,
+    holder_id: <span class="kw">impl </span>Into&lt;String&gt;,
+    leader_lock: config::LeaderLock,
+) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+    <span class="kw">const </span>LEASE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"quilkin-mds-leader-lease"</span>;
+    <span class="kw">let </span>leadership = LeaseLock::new(
+        client,
+        namespace.as_ref(),
+        LeaseLockParams {
+            holder_id: holder_id.into(),
+            lease_name: LEASE_NAME.into(),
+            lease_ttl: std::time::Duration::from_millis(<span class="number">750</span>),
+        },
+    );
+
+    <span class="kw">loop </span>{
+        <span class="kw">match </span>leadership.try_acquire_or_renew().<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(ll) =&gt; leader_lock.store(ll.acquired_lease),
+            <span class="prelude-val">Err</span>(error) =&gt; <span class="macro">tracing::warn!</span>(%error),
+        }
+
+        tokio::time::sleep(std::time::Duration::from_millis(<span class="number">500</span>)).<span class="kw">await</span>;
+    }
+}
 <span class="kw">pub fn </span>update_filters_from_configmap(
     client: kube::Client,
     namespace: <span class="kw">impl </span>AsRef&lt;str&gt;,

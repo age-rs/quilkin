@@ -734,7 +734,8 @@
 <a href="#733" id="733">733</a>
 <a href="#734" id="734">734</a>
 <a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -827,6 +828,7 @@
     /// * Removes previous test namespaces
     /// * Retrieves the `IMAGE_TAG` to test from env vars, and panics if it if not available.
     </span><span class="kw">pub async fn </span>new() -&gt; Client {
+        <span class="kw">let </span>_provider = rustls::crypto::aws_lc_rs::default_provider().install_default();
         <span class="kw">let </span><span class="kw-2">mut </span>client = CLIENT
             .get_or_init(|| <span class="kw">async </span>{
                 <span class="kw">let </span>client = kube::Client::try_default()
