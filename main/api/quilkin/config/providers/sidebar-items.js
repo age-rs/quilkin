@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Providers"],"mod":["k8s"]};
+window.SIDEBAR_ITEMS = {"mod":["k8s"],"struct":["FiltersAndClusters","Providers"]};

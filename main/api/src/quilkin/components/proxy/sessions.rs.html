@@ -1327,7 +1327,7 @@
         <span class="kw">let </span>(pending_sends, _srecv) = <span class="kw">crate</span>::net::queue(<span class="number">1</span>).unwrap();
         (
             SessionPool::new(
-                Arc::new(Config::default_agent()),
+                Arc::new(Config::default()),
                 <span class="macro">vec!</span>[pending_sends.clone()],
                 Arc::new(BufferPool::default()),
             ),

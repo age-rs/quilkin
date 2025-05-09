@@ -323,7 +323,9 @@
 <a href="#322" id="322">322</a>
 <a href="#323" id="323">323</a>
 <a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -342,6 +344,8 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>error;
 <span class="kw">pub mod </span>packet_router;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>sessions;
+
+<span class="kw">use </span><span class="kw">crate</span>::config::IcaoCode;
 
 <span class="kw">use </span><span class="kw">super</span>::RunArgs;
 <span class="kw">pub use </span>error::PipelineError;
@@ -397,7 +401,7 @@
     <span class="kw">pub </span>qcmp: socket2::Socket,
     <span class="kw">pub </span>phoenix: <span class="kw">crate</span>::net::TcpListener,
     <span class="kw">pub </span>notifier: <span class="prelude-ty">Option</span>&lt;tokio::sync::mpsc::UnboundedSender&lt;String&gt;&gt;,
-    <span class="kw">pub </span>xdp: <span class="kw">crate</span>::cli::proxy::XdpOptions,
+    <span class="kw">pub </span>xdp: <span class="kw">crate</span>::cli::XdpOptions,
     <span class="kw">pub </span>termination_timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Timeout&gt;,
 }
 
@@ -629,7 +633,7 @@
             .phoenix()
             .phoenix_port(phoenix_port)
             .termination_timeout(<span class="self">self</span>.termination_timeout)
-            .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
+            .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx, IcaoCode::default())<span class="question-mark">?</span>;
 
         <span class="macro">tracing::info!</span>(<span class="string">"Quilkin is ready"</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(initialized) = initialized {

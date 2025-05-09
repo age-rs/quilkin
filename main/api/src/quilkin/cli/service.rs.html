@@ -641,9 +641,28 @@
 <a href="#640" id="640">640</a>
 <a href="#641" id="641">641</a>
 <a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{future::Future, sync::Arc};
 
-<span class="kw">use crate</span>::{components::proxy::SessionPool, config::Config};
+<span class="kw">use crate</span>::{
+    components::proxy::SessionPool,
+    config::{Config, IcaoCode},
+};
 
 <span class="attr">#[derive(Debug, clap::Parser)]
 #[command(next_help_heading = <span class="string">"Service Options"</span>)]
@@ -788,6 +807,10 @@
 }
 
 <span class="kw">impl </span>Service {
+    <span class="kw">pub fn </span>builder() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::default()
+    }
+
     <span class="doccomment">/// Enables the UDP service.
     </span><span class="kw">pub fn </span>udp(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.udp_enabled = <span class="bool-val">true</span>;
@@ -888,8 +911,17 @@
         <span class="kw-2">mut </span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
         shutdown_rx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx,
+        icao_code: IcaoCode,
     ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;<span class="kw">crate</span>::Result&lt;()&gt;&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = shutdown_rx.clone();
+
+        <span class="kw">if </span><span class="self">self</span>.qcmp_enabled {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(agent) = config.dyn_cfg.agent() {
+                agent.icao_code.store(Arc::new(icao_code));
+                agent.qcmp_port.store(Arc::new(<span class="self">self</span>.qcmp_port));
+            }
+        }
+
         <span class="kw">let </span>mds_task = <span class="self">self</span>.publish_mds(config)<span class="question-mark">?</span>;
         <span class="kw">let </span>(phoenix_task, phoenix_finalizer) = <span class="self">self</span>.publish_phoenix(config)<span class="question-mark">?</span>;
         <span class="comment">// We need to call this before qcmp since if we use XDP we handle QCMP

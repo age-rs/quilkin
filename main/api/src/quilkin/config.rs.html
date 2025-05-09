@@ -1326,7 +1326,38 @@
 <a href="#1325" id="1325">1325</a>
 <a href="#1326" id="1326">1326</a>
 <a href="#1327" id="1327">1327</a>
-<a href="#1328" id="1328">1328</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1374,7 +1405,6 @@
 <span class="kw">mod </span>config_type;
 <span class="kw">mod </span>error;
 <span class="kw">pub mod </span>providers;
-<span class="kw">pub mod </span>providersv2;
 <span class="kw">mod </span>serialization;
 <span class="kw">mod </span>slot;
 <span class="kw">pub mod </span>watch;
@@ -1800,6 +1830,27 @@
             });
         }
 
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(agent) = control_plane
+            .config
+            .dyn_cfg
+            .typemap
+            .get::&lt;Agent&gt;()
+            .filter(|<span class="kw">_</span>| !control_plane.is_relay)
+        {
+            agent.icao_code.watch({
+                <span class="kw">let </span>this = control_plane.clone();
+                <span class="kw">move </span>|<span class="kw">_</span>| {
+                    this.push_update(xds::DATACENTER_TYPE);
+                }
+            });
+            agent.qcmp_port.watch({
+                <span class="kw">let </span>this = control_plane.clone();
+                <span class="kw">move </span>|<span class="kw">_</span>| {
+                    this.push_update(xds::DATACENTER_TYPE);
+                }
+            });
+        }
+
         <span class="macro">tracing::trace!</span>(<span class="string">"waiting for changes"</span>);
 
         <span class="kw">async move </span>{
@@ -1931,7 +1982,7 @@
                             xds::Resource::Datacenter(<span class="kw">crate</span>::net::cluster::proto::Datacenter {
                                 qcmp_port: qcmp_port <span class="kw">as _</span>,
                                 icao_code: name.clone(),
-                                ..Default::default()
+                                host: String::new(),
                             });
 
                         resources.push(XdsResource {
@@ -1942,7 +1993,9 @@
                             ttl: <span class="prelude-val">None</span>,
                             cache_control: <span class="prelude-val">None</span>,
                         });
-                    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(datacenters) = <span class="self">self</span>.dyn_cfg.datacenters() {
+                    }
+
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(datacenters) = <span class="self">self</span>.dyn_cfg.datacenters() {
                         <span class="kw">for </span>entry <span class="kw">in </span>datacenters.read().iter() {
                             <span class="kw">let </span>host = entry.key().to_string();
                             <span class="kw">let </span>qcmp_port = entry.qcmp_port;
@@ -1956,12 +2009,12 @@
                                 <span class="kw">crate</span>::net::cluster::proto::Datacenter {
                                     qcmp_port: qcmp_port <span class="kw">as _</span>,
                                     icao_code: entry.icao_code.to_string(),
-                                    host: host.clone(),
+                                    host,
                                 },
                             );
 
                             resources.push(XdsResource {
-                                name: host,
+                                name: entry.icao_code.to_string(),
                                 version,
                                 resource: <span class="prelude-val">Some</span>(resource.try_encode()<span class="question-mark">?</span>),
                                 aliases: Vec::new(),
@@ -2118,31 +2171,37 @@
                             }
                         };
 
-                        <span class="kw">let </span>parse_payload = || -&gt; <span class="kw">crate</span>::Result&lt;(std::net::IpAddr, Datacenter)&gt; {
-                            <span class="kw">let </span>host: std::net::IpAddr = <span class="kw">if let </span><span class="prelude-val">Some</span>(ra) = remote_addr {
+                        <span class="kw">let </span>host = <span class="kw">if </span>dc.host.is_empty() {
+                            <span class="kw">if let </span><span class="prelude-val">Some</span>(ra) = remote_addr {
                                 ra
-                            }<span class="kw">else </span>{
-                                 dc.host.parse()<span class="question-mark">?
-                            </span>};
-                            <span class="kw">let </span>dc = Datacenter {
-                                qcmp_port: dc.qcmp_port.try_into()<span class="question-mark">?</span>,
-                                icao_code: dc.icao_code.parse()<span class="question-mark">?</span>,
-                            };
-
-                            <span class="prelude-val">Ok</span>((host, dc))
+                            } <span class="kw">else </span>{
+                                <span class="kw">continue</span>;
+                            }
+                        } <span class="kw">else </span>{
+                            <span class="kw">match </span>dc.host.parse() {
+                                <span class="prelude-val">Ok</span>(host) =&gt; host,
+                                <span class="prelude-val">Err</span>(_err) =&gt; {
+                                    <span class="macro">tracing::warn!</span>(<span class="string">"datacenter host not set, and there is not remote address"</span>);
+                                    <span class="kw">continue</span>;
+                                }
+                            }
                         };
 
-                        <span class="kw">match </span>parse_payload() {
-                            <span class="prelude-val">Ok</span>((host, datacenter)) =&gt; {
-                                wg.insert(
-                                    host,
-                                    datacenter,
-                                );
-                            }
-                            <span class="prelude-val">Err</span>(error) =&gt; {
-                                <span class="kw">return </span><span class="prelude-val">Err</span>(error.wrap_err(<span class="string">"a datacenter resource could not be applied because the resource payload could not be parsed"</span>));
-                            }
-                        }
+                        <span class="kw">let </span>parse_payload = || -&gt; <span class="kw">crate</span>::Result&lt;Datacenter&gt; {
+                            <span class="kw">use </span>eyre::Context;
+                            <span class="kw">let </span>dc = Datacenter {
+                                qcmp_port: dc.qcmp_port.try_into().context(<span class="string">"unable to parse datacenter QCMP port"</span>)<span class="question-mark">?</span>,
+                                icao_code: dc.icao_code.parse().context(<span class="string">"unable to parse datacenter ICAO"</span>)<span class="question-mark">?</span>,
+                            };
+
+                            <span class="prelude-val">Ok</span>(dc)
+                        };
+
+                        <span class="kw">let </span>datacenter = parse_payload()<span class="question-mark">?</span>;
+                        wg.insert(
+                            host,
+                            datacenter,
+                        );
                     }
 
                     <span class="prelude-val">Ok</span>(())
@@ -2234,10 +2293,18 @@
         <span class="kw">crate</span>::metrics::apply_clusters(clusters);
     }
 
-    <span class="kw">pub fn </span>default_agent() -&gt; <span class="self">Self </span>{
+    <span class="attr">#[inline]
+    </span><span class="kw">pub fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
+        String::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.dyn_cfg.id.load())
+    }
+}
+
+<span class="kw">impl </span>Default <span class="kw">for </span>Config {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>typemap = default_typemap();
         insert_default::&lt;FilterChain&gt;(<span class="kw-2">&amp;mut </span>typemap);
         insert_default::&lt;ClusterMap&gt;(<span class="kw-2">&amp;mut </span>typemap);
+        insert_default::&lt;DatacenterMap&gt;(<span class="kw-2">&amp;mut </span>typemap);
         insert_default::&lt;Agent&gt;(<span class="kw-2">&amp;mut </span>typemap);
 
         <span class="self">Self </span>{
@@ -2247,26 +2314,6 @@
                 typemap,
             },
         }
-    }
-
-    <span class="kw">pub fn </span>default_non_agent() -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>typemap = default_typemap();
-        insert_default::&lt;FilterChain&gt;(<span class="kw-2">&amp;mut </span>typemap);
-        insert_default::&lt;ClusterMap&gt;(<span class="kw-2">&amp;mut </span>typemap);
-        insert_default::&lt;DatacenterMap&gt;(<span class="kw-2">&amp;mut </span>typemap);
-
-        <span class="self">Self </span>{
-            dyn_cfg: DynamicConfig {
-                id: default_id(),
-                version: Version::default(),
-                typemap,
-            },
-        }
-    }
-
-    <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        String::clone(<span class="kw-2">&amp;</span><span class="self">self</span>.dyn_cfg.id.load())
     }
 }
 
@@ -2653,5 +2700,20 @@
     Ipv4,
     Ipv6,
     Any,
+}
+
+<span class="kw">impl </span>clap::ValueEnum <span class="kw">for </span><span class="kw">crate</span>::config::AddrKind {
+    <span class="kw">fn </span>value_variants&lt;<span class="lifetime">'a</span>&gt;() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[<span class="self">Self</span>] {
+        <span class="kw-2">&amp;</span>[<span class="self">Self</span>::Ipv4, <span class="self">Self</span>::Ipv6, <span class="self">Self</span>::Any]
+    }
+
+    <span class="kw">fn </span>to_possible_value(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;clap::builder::PossibleValue&gt; {
+        <span class="kw">use </span>clap::builder::PossibleValue <span class="kw">as </span>pv;
+        <span class="prelude-val">Some</span>(<span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Ipv4 =&gt; pv::new(<span class="string">"v4"</span>),
+            <span class="self">Self</span>::Ipv6 =&gt; pv::new(<span class="string">"v6"</span>),
+            <span class="self">Self</span>::Any =&gt; pv::new(<span class="string">"any"</span>),
+        })
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -329,19 +329,13 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::ser::SerializeMap;
+<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="kw">use </span>serde::ser::SerializeMap;
 
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
 <span class="kw">impl </span>Config {
     <span class="doccomment">/// Attempts to deserialize `input` as a YAML object representing `Self`.
-    </span><span class="kw">pub fn </span>from_reader&lt;R: std::io::Read&gt;(input: R, is_agent: bool) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, eyre::Error&gt; {
+    </span><span class="kw">pub fn </span>from_reader&lt;R: std::io::Read&gt;(input: R) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, eyre::Error&gt; {
         <span class="attr">#[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         </span><span class="kw">struct </span>AllConfig {
@@ -355,12 +349,6 @@
         }
 
         <span class="kw">let </span>cfg: AllConfig = serde_yaml::from_reader(input)<span class="question-mark">?</span>;
-
-        <span class="kw">if </span>cfg.datacenters.is_some() &amp;&amp; (cfg.icao_code.is_some() || cfg.qcmp_port.is_some()) {
-            <span class="macro">eyre::bail!</span>(<span class="string">"`datacenters` and `icao_code` or `qcmp_port` were present"</span>);
-        } <span class="kw">else if </span>is_agent &amp;&amp; cfg.datacenters.is_some() {
-            <span class="macro">eyre::bail!</span>(<span class="string">"`datacenters` was set even though this is an agent"</span>);
-        }
 
         <span class="kw">let </span><span class="kw-2">mut </span>typemap = default_typemap();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(filters) = cfg.filters {
@@ -470,7 +458,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>deserialise_client() {
-        <span class="kw">let </span>config = Config::default_non_agent();
+        <span class="kw">let </span>config = Config::default();
         config.dyn_cfg.clusters().unwrap().modify(|clusters| {
             clusters.insert_default([Endpoint::new(<span class="string">"127.0.0.1:25999"</span>.parse().unwrap())].into());
         });
@@ -480,7 +468,7 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>deserialise_server() {
-        <span class="kw">let </span>config = Config::default_non_agent();
+        <span class="kw">let </span>config = Config::default();
         config.dyn_cfg.clusters().unwrap().modify(|clusters| {
             clusters.insert_default(
                 [
@@ -581,7 +569,7 @@
                 ],
             }]
         }))
-        .unwrap_or_else(|<span class="kw">_</span>| Config::default_agent());
+        .unwrap();
 
         <span class="kw">let </span>value = config.dyn_cfg.clusters().unwrap().read();
         <span class="macro">assert_eq!</span>(
@@ -665,7 +653,7 @@ dynamic:
         ];
 
         <span class="kw">for </span>config <span class="kw">in </span>configs {
-            <span class="kw">let </span>result = Config::from_reader(config.as_bytes(), <span class="bool-val">false</span>);
+            <span class="kw">let </span>result = Config::from_reader(config.as_bytes());
             <span class="kw">let </span>error = result.unwrap_err();
             <span class="macro">println!</span>(<span class="string">"here: {}"</span>, error);
             <span class="macro">assert!</span>(<span class="macro">format!</span>(<span class="string">"{error:?}"</span>).contains(<span class="string">"unknown field"</span>));

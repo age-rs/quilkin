@@ -177,8 +177,8 @@ Fleet, that will only be accessible through Quilkin that is hosted within the sa
 an out-of-the-box control plane for integration between Agones and <a href="../../services/xds.html">Quilkin's xDS configuration API</a> with
 minimal effort.</p>
 <h2 id="2-install-quilkin-agones-xds-provider"><a class="header" href="#2-install-quilkin-agones-xds-provider">2. Install Quilkin Agones xDS Provider</a></h2>
-<p>To install Quilkin as an Agones integrated xDS control plane, we can create a deployment of Quilkin running as
-<code>quilkin manage agones</code>, with the appropriate permissions.</p>
+<p>To install Quilkin as an Agones integrated xDS control plane, we can create a deployment of Quilkin running with
+<code>provider.k8s.agones</code>, with the appropriate permissions.</p>
 <p>Run the following:</p>
 <pre><code class="language-shell">kubectl apply -f https://raw.githubusercontent.com/googleforgames/quilkin/main/examples/agones-xonotic-xds/xds-control-plane.yaml
 </code></pre>
