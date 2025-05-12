@@ -1338,26 +1338,7 @@
 <a href="#1337" id="1337">1337</a>
 <a href="#1338" id="1338">1338</a>
 <a href="#1339" id="1339">1339</a>
-<a href="#1340" id="1340">1340</a>
-<a href="#1341" id="1341">1341</a>
-<a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a>
-<a href="#1344" id="1344">1344</a>
-<a href="#1345" id="1345">1345</a>
-<a href="#1346" id="1346">1346</a>
-<a href="#1347" id="1347">1347</a>
-<a href="#1348" id="1348">1348</a>
-<a href="#1349" id="1349">1349</a>
-<a href="#1350" id="1350">1350</a>
-<a href="#1351" id="1351">1351</a>
-<a href="#1352" id="1352">1352</a>
-<a href="#1353" id="1353">1353</a>
-<a href="#1354" id="1354">1354</a>
-<a href="#1355" id="1355">1355</a>
-<a href="#1356" id="1356">1356</a>
-<a href="#1357" id="1357">1357</a>
-<a href="#1358" id="1358">1358</a>
-<a href="#1359" id="1359">1359</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1340" id="1340">1340</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1949,25 +1930,6 @@
                         cache_control: <span class="prelude-val">None</span>,
                     });
                 }
-                <span class="kw">crate</span>::xds::ResourceType::Listener =&gt; {
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(filters) = <span class="self">self</span>.dyn_cfg.filters() <span class="kw">else </span>{
-                        <span class="kw">break </span><span class="lifetime">'append</span>;
-                    };
-
-                    <span class="kw">let </span>resource = <span class="kw">crate</span>::xds::Resource::Listener(
-                        <span class="kw">crate</span>::net::cluster::proto::FilterChain::try_from(<span class="kw-2">&amp;*</span>filters.load())<span class="question-mark">?</span>,
-                    );
-                    <span class="kw">let </span>any = resource.try_encode()<span class="question-mark">?</span>;
-
-                    resources.push(XdsResource {
-                        name: <span class="string">"listener"</span>.into(),
-                        version: <span class="string">"0"</span>.into(),
-                        resource: <span class="prelude-val">Some</span>(any),
-                        aliases: Vec::new(),
-                        ttl: <span class="prelude-val">None</span>,
-                        cache_control: <span class="prelude-val">None</span>,
-                    });
-                }
                 ResourceType::Datacenter =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(agent) = <span class="self">self</span>.dyn_cfg.agent() {
                         <span class="kw">let </span>name = agent.icao_code.load().to_string();
@@ -2112,7 +2074,7 @@
         <span class="kw">let </span>resource_type = type_url.parse::&lt;ResourceType&gt;()<span class="question-mark">?</span>;
 
         <span class="kw">match </span>resource_type {
-            ResourceType::FilterChain | ResourceType::Listener =&gt; {
+            ResourceType::FilterChain =&gt; {
                 <span class="kw">let </span><span class="prelude-val">Some</span>(filters) = <span class="self">self</span>.dyn_cfg.filters() <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                 };
@@ -2132,7 +2094,7 @@
                 };
 
                 <span class="kw">let </span>resource = <span class="kw">match </span><span class="kw">crate</span>::xds::Resource::try_decode(resource)<span class="question-mark">? </span>{
-                    <span class="kw">crate</span>::xds::Resource::FilterChain(r) | <span class="kw">crate</span>::xds::Resource::Listener(r) =&gt; r,
+                    <span class="kw">crate</span>::xds::Resource::FilterChain(r) =&gt; r,
                     res =&gt; {
                         <span class="macro">eyre::bail!</span>(
                             <span class="string">"filter chain response contained a {} resource payload"</span>,
