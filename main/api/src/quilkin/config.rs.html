@@ -1335,10 +1335,7 @@
 <a href="#1334" id="1334">1334</a>
 <a href="#1335" id="1335">1335</a>
 <a href="#1336" id="1336">1336</a>
-<a href="#1337" id="1337">1337</a>
-<a href="#1338" id="1338">1338</a>
-<a href="#1339" id="1339">1339</a>
-<a href="#1340" id="1340">1340</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1337" id="1337">1337</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1379,13 +1376,10 @@
     xds::{<span class="self">self</span>, ResourceType},
 };
 
-<span class="kw">pub use </span><span class="self">self</span>::{
-    config_type::ConfigType, error::ValidationError, providers::Providers, slot::Slot, watch::Watch,
-};
+<span class="kw">pub use </span><span class="self">self</span>::{config_type::ConfigType, error::ValidationError, slot::Slot, watch::Watch};
 
 <span class="kw">mod </span>config_type;
 <span class="kw">mod </span>error;
-<span class="kw">pub mod </span>providers;
 <span class="kw">mod </span>serialization;
 <span class="kw">mod </span>slot;
 <span class="kw">pub mod </span>watch;
