@@ -67,7 +67,8 @@
 <a href="#66" id="66">66</a>
 <a href="#67" id="67">67</a>
 <a href="#68" id="68">68</a>
-<a href="#69" id="69">69</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,12 +101,13 @@
 <span class="kw">pub mod </span>components;
 <span class="kw">pub mod </span>config;
 <span class="kw">pub mod </span>filters;
+<span class="kw">pub mod </span>service;
 <span class="kw">pub mod </span>xds;
 
 <span class="attr">#[doc(hidden)]
 </span><span class="kw">pub mod </span>test;
 
-<span class="kw">pub use </span>quilkin_proto <span class="kw">as </span>generated;
+<span class="kw">pub use </span>{quilkin_proto <span class="kw">as </span>generated, service::Service};
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T, E = eyre::Error&gt; = std::result::Result&lt;T, E&gt;;
 

@@ -394,7 +394,7 @@
     <span class="kw">pub </span>qcmp: socket2::Socket,
     <span class="kw">pub </span>phoenix: <span class="kw">crate</span>::net::TcpListener,
     <span class="kw">pub </span>notifier: <span class="prelude-ty">Option</span>&lt;tokio::sync::mpsc::UnboundedSender&lt;String&gt;&gt;,
-    <span class="kw">pub </span>xdp: <span class="kw">crate</span>::cli::XdpOptions,
+    <span class="kw">pub </span>xdp: <span class="kw">crate</span>::service::XdpOptions,
     <span class="kw">pub </span>termination_timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Timeout&gt;,
 }
 
@@ -616,7 +616,7 @@
         )
         .port();
 
-        <span class="kw">let </span>svc_task = <span class="kw">crate</span>::cli::Service::default()
+        <span class="kw">let </span>svc_task = <span class="kw">crate</span>::Service::default()
             .udp()
             .udp_port(udp_port)
             .xdp(<span class="self">self</span>.xdp)

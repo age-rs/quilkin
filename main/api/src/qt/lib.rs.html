@@ -1081,7 +1081,7 @@
                     .fs()
                     .fs_path(path)
                     .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>);
-                <span class="kw">let </span>task = quilkin::cli::Service::default()
+                <span class="kw">let </span>task = quilkin::Service::default()
                     .xds()
                     .xds_port(xds_port)
                     .mds()
@@ -1156,7 +1156,7 @@
                     .fs_path(path)
                     .grpc_push_endpoints(relay_servers)
                     .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>);
-                <span class="kw">let </span>task = quilkin::cli::Service::default()
+                <span class="kw">let </span>task = quilkin::Service::default()
                     .qcmp()
                     .qcmp_port(port)
                     .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx, apc.icao_code)

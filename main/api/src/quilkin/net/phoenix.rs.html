@@ -980,7 +980,7 @@
     listener: <span class="kw">crate</span>::net::TcpListener,
     datacenters: config::Watch&lt;config::DatacenterMap&gt;,
     phoenix: Phoenix&lt;M&gt;,
-) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">crate</span>::cli::Finalizer&gt; {
+) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">crate</span>::service::Finalizer&gt; {
     <span class="kw">use </span>eyre::WrapErr <span class="kw">as _</span>;
     <span class="kw">use </span>hyper::{Response, StatusCode};
 
