@@ -505,7 +505,12 @@
 <a href="#504" id="504">504</a>
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a></pre></div><pre class="rust"><code><span class="attr">#![allow(dead_code)]
 
 </span><span class="kw">use </span>quilkin_xdp::xdp::{
     <span class="self">self</span>,
@@ -902,7 +907,7 @@
     worker: quilkin_xdp::XdpWorker,
     external_port: NetworkU16,
     qcmp_port: NetworkU16,
-    config: process::ConfigState,
+    <span class="kw-2">mut </span>config: process::ConfigState,
     sessions: Arc&lt;process::SessionState&gt;,
     local_ipv4: std::net::Ipv4Addr,
     local_ipv6: std::net::Ipv6Addr,
@@ -923,7 +928,6 @@
     <span class="kw">let </span><span class="kw-2">mut </span>state = process::State {
         external_port,
         qcmp_port,
-        config,
         destinations: Vec::with_capacity(<span class="number">1</span>),
         addr_to_asn: Default::default(),
         sessions,
@@ -966,7 +970,13 @@
 
             <span class="comment">// Process each of the packets that we received, potentially queuing
             // packets to be sent
-            </span>process::process_packets(<span class="kw-2">&amp;mut </span>rx_slab, <span class="kw-2">&amp;mut </span>umem, <span class="kw-2">&amp;mut </span>tx_slab, <span class="kw-2">&amp;mut </span>state);
+            </span>process::process_packets(
+                <span class="kw-2">&amp;mut </span>rx_slab,
+                <span class="kw-2">&amp;mut </span>umem,
+                <span class="kw-2">&amp;mut </span>tx_slab,
+                <span class="kw-2">&amp;mut </span>config,
+                <span class="kw-2">&amp;mut </span>state,
+            );
 
             <span class="kw">let </span>before = tx_slab.len();
             <span class="kw">let </span>enqueued_sends = <span class="kw">match </span>tx.send(<span class="kw-2">&amp;mut </span>tx_slab, <span class="bool-val">true</span>) {

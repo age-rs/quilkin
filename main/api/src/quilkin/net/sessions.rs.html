@@ -733,13 +733,7 @@
 <a href="#732" id="732">732</a>
 <a href="#733" id="733">733</a>
 <a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#735" id="735">735</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -768,7 +762,7 @@
 <span class="kw">use crate</span>::{
     Loggable,
     collections::{BufferPool, FrozenPoolBuffer, PoolBuffer},
-    config::Config,
+    config::filter::CachedFilterChain,
     filters::Filter,
     metrics,
     net::{
@@ -835,9 +829,9 @@
     storage: Arc&lt;RwLock&lt;SocketStorage&gt;&gt;,
     session_map: SessionMap,
     <span class="kw">pub</span>(<span class="kw">super</span>) buffer_pool: Arc&lt;BufferPool&gt;,
-    config: Arc&lt;Config&gt;,
     downstream_sends: Vec&lt;PacketQueueSender&gt;,
     downstream_index: atomic::AtomicUsize,
+    cached_filter_chain: CachedFilterChain,
 }
 
 <span class="doccomment">/// The wrapper struct responsible for holding all of the socket related mappings.
@@ -854,21 +848,21 @@
     /// required for the pool to provide a reference to the children to be able
     /// to release their sockets back to the parent.
     </span><span class="kw">pub fn </span>new(
-        config: Arc&lt;Config&gt;,
         downstream_sends: Vec&lt;PacketQueueSender&gt;,
         buffer_pool: Arc&lt;BufferPool&gt;,
+        cached_filter_chain: CachedFilterChain,
     ) -&gt; Arc&lt;<span class="self">Self</span>&gt; {
         <span class="kw">const </span>SESSION_TIMEOUT_SECONDS: Duration = Duration::from_secs(<span class="number">60</span>);
         <span class="kw">const </span>SESSION_EXPIRY_POLL_INTERVAL: Duration = Duration::from_secs(<span class="number">60</span>);
 
         Arc::new(<span class="self">Self </span>{
-            config,
             ports_to_sockets: &lt;<span class="kw">_</span>&gt;::default(),
             storage: &lt;<span class="kw">_</span>&gt;::default(),
             session_map: SessionMap::new(SESSION_TIMEOUT_SECONDS, SESSION_EXPIRY_POLL_INTERVAL),
             buffer_pool,
             downstream_sends,
             downstream_index: atomic::AtomicUsize::new(<span class="number">0</span>),
+            cached_filter_chain,
         })
     }
 
@@ -886,8 +880,12 @@
             </span>.port();
 
         <span class="kw">let </span>(pending_sends, srecv) = <span class="kw">crate</span>::net::queue(<span class="number">15</span>)<span class="question-mark">?</span>;
-        <span class="self">self</span>.clone()
-            .spawn_session(raw_socket, port, (pending_sends.clone(), srecv))<span class="question-mark">?</span>;
+        <span class="self">self</span>.clone().spawn_session(
+            raw_socket,
+            port,
+            (pending_sends.clone(), srecv),
+            <span class="self">self</span>.cached_filter_chain.clone(),
+        )<span class="question-mark">?</span>;
 
         <span class="self">self</span>.ports_to_sockets
             .write()
@@ -901,6 +899,7 @@
         <span class="kw-2">mut </span>recv_addr: SocketAddr,
         port: u16,
         last_received_at: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;UtcTimestamp&gt;,
+        filters: <span class="kw-2">&amp;</span><span class="kw">crate</span>::filters::FilterChain,
     ) {
         <span class="kw">let </span>received_at = UtcTimestamp::now();
         recv_addr.set_ip(recv_addr.ip().to_canonical());
@@ -926,13 +925,7 @@
 
         <span class="kw">let </span>result = {
             <span class="kw">let </span>_timer = metrics::processing_time(metrics::WRITE).start_timer();
-            <span class="self">Self</span>::process_recv_packet(
-                <span class="self">self</span>.config.clone(),
-                recv_addr,
-                downstream_addr,
-                asn_info,
-                packet,
-            )
+            <span class="self">Self</span>::process_recv_packet(recv_addr, downstream_addr, asn_info, packet, filters)
         };
 
         <span class="kw">match </span>result {
@@ -1073,23 +1066,17 @@
 
     <span class="doccomment">/// Processes a packet that is received by this session.
     </span><span class="kw">fn </span>process_recv_packet(
-        config: Arc&lt;<span class="kw">crate</span>::Config&gt;,
         source: SocketAddr,
         dest: SocketAddr,
         asn_info: <span class="prelude-ty">Option</span>&lt;MetricsIpNetEntry&gt;,
         packet: PoolBuffer,
+        filters: <span class="kw-2">&amp;</span><span class="kw">crate</span>::filters::FilterChain,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendPacket, (<span class="prelude-ty">Option</span>&lt;MetricsIpNetEntry&gt;, Error)&gt; {
         <span class="macro">tracing::trace!</span>(%source, %dest, length = packet.len(), <span class="string">"received packet from upstream"</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>context = <span class="kw">crate</span>::filters::WriteContext::new(source.into(), dest.into(), packet);
-        <span class="kw">let </span><span class="prelude-val">Some</span>(filters) = config.dyn_cfg.filters() <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>((
-                asn_info,
-                Error::Filter(<span class="kw">crate</span>::filters::FilterError::Custom(<span class="string">"no filters loaded"</span>)),
-            ));
-        };
 
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = filters.load().write(<span class="kw-2">&amp;mut </span>context) {
+        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = filters.write(<span class="kw-2">&amp;mut </span>context) {
             <span class="kw">return </span><span class="prelude-val">Err</span>((asn_info, err.into()));
         }
 
@@ -1309,11 +1296,12 @@
 
     <span class="kw">async fn </span>new_pool() -&gt; (Arc&lt;SessionPool&gt;, PacketQueueSender) {
         <span class="kw">let </span>(pending_sends, _srecv) = <span class="kw">crate</span>::net::queue(<span class="number">1</span>).unwrap();
+        <span class="kw">let </span>fake = <span class="kw">crate</span>::config::filter::FilterChainConfig::default();
         (
             SessionPool::new(
-                Arc::new(Config::default()),
                 <span class="macro">vec!</span>[pending_sends.clone()],
                 Arc::new(BufferPool::default()),
+                fake.cached(),
             ),
             pending_sends,
         )

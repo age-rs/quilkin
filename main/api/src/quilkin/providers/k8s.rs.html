@@ -316,7 +316,7 @@
 
 </span><span class="kw">pub mod </span>agones;
 
-<span class="kw">use </span>std::{collections::BTreeSet, sync::Arc};
+<span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use </span>futures::Stream;
 <span class="kw">use </span>k8s_openapi::api::core::v1::ConfigMap;
@@ -375,7 +375,7 @@
 <span class="kw">pub fn </span>update_filters_from_configmap(
     client: kube::Client,
     namespace: <span class="kw">impl </span>AsRef&lt;str&gt;,
-    filters: config::Slot&lt;<span class="kw">crate</span>::filters::FilterChain&gt;,
+    filters: config::filter::FilterChainConfig,
 ) -&gt; <span class="kw">impl </span>Stream&lt;Item = <span class="kw">crate</span>::Result&lt;(), eyre::Error&gt;&gt; {
     <span class="macro">async_stream::stream!</span> {
         <span class="kw">let </span><span class="kw-2">mut </span>cmap = <span class="prelude-val">None</span>;
@@ -411,7 +411,7 @@
                 }
                 Event::Delete(<span class="kw">_</span>) =&gt; {
                     metrics::k8s::filters(<span class="bool-val">false</span>);
-                    filters.remove();
+                    filters.store(Default::default());
                     <span class="kw">yield </span><span class="prelude-val">Ok</span>(());
                     <span class="kw">continue</span>;
                 }
@@ -428,7 +428,7 @@
                     .transpose()<span class="question-mark">?
             </span>{
                 metrics::k8s::filters(<span class="bool-val">true</span>);
-                filters.store(Arc::new(de_filters));
+                filters.store(de_filters);
             }
 
             <span class="kw">yield </span><span class="prelude-val">Ok</span>(());

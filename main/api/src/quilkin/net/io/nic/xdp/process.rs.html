@@ -1014,7 +1014,7 @@
 
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>ConfigState {
-    <span class="kw">pub </span>filters: config::Slot&lt;<span class="kw">crate</span>::filters::FilterChain&gt;,
+    <span class="kw">pub </span>filters: config::filter::CachedFilterChain,
     <span class="kw">pub </span>clusters: config::Watch&lt;<span class="kw">crate</span>::net::ClusterMap&gt;,
 }
 
@@ -1023,7 +1023,6 @@
     /// or servers (upstream)
     </span><span class="kw">pub </span>external_port: NetworkU16,
     <span class="kw">pub </span>qcmp_port: NetworkU16,
-    <span class="kw">pub </span>config: ConfigState,
     <span class="kw">pub </span>destinations: Vec&lt;EndpointAddress&gt;,
     <span class="kw">pub </span>addr_to_asn: std::collections::HashMap&lt;IpAddr, <span class="prelude-ty">Option</span>&lt;(IpNetEntry, maxmind_db::Asn)&gt;&gt;,
     <span class="kw">pub </span>sessions: Arc&lt;SessionState&gt;,
@@ -1349,10 +1348,11 @@
     rx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;RXN&gt;,
     umem: <span class="kw-2">&amp;mut </span>Umem,
     tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
+    config_state: <span class="kw-2">&amp;mut </span>ConfigState,
     state: <span class="kw-2">&amp;mut </span>State,
 ) {
-    <span class="kw">let </span>filters = state.config.filters.load();
-    <span class="kw">let </span>cm = state.config.clusters.clone_value();
+    <span class="kw">let </span>filters = config_state.filters.load();
+    <span class="kw">let </span>cm = config_state.clusters.clone_value();
 
     <span class="kw">let </span>now = UtcTimestamp::now();
     <span class="kw">let </span>jitter = (now - state.last_receive).nanos();
@@ -1392,9 +1392,9 @@
             <span class="kw">let </span>_timer = metrics::processing_time(direction).start_timer();
 
             <span class="kw">if </span>is_client {
-                process_client_packet(packet, umem, <span class="kw-2">&amp;</span>filters, <span class="kw-2">&amp;</span>cm, state, tx_slab)
+                process_client_packet(packet, umem, filters, <span class="kw-2">&amp;</span>cm, state, tx_slab)
             } <span class="kw">else </span>{
-                process_server_packet(packet, umem, <span class="kw-2">&amp;</span>filters, state, tx_slab, jitter)
+                process_server_packet(packet, umem, filters, state, tx_slab, jitter)
             }
         };
 

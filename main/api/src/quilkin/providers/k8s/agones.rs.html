@@ -984,7 +984,7 @@
     config_namespace: <span class="prelude-ty">Option</span>&lt;String&gt;,
     health_check: Arc&lt;AtomicBool&gt;,
     locality: <span class="prelude-ty">Option</span>&lt;Locality&gt;,
-    filters: <span class="kw">crate</span>::config::Slot&lt;<span class="kw">crate</span>::filters::FilterChain&gt;,
+    filters: <span class="kw">crate</span>::config::filter::FilterChainConfig,
     clusters: <span class="kw">crate</span>::config::Watch&lt;<span class="kw">crate</span>::net::ClusterMap&gt;,
     address_selector: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::config::AddressSelector&gt;,
 ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {

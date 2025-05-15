@@ -933,7 +933,8 @@
 <a href="#932" id="932">932</a>
 <a href="#933" id="933">933</a>
 <a href="#934" id="934">934</a>
-<a href="#935" id="935">935</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -1008,7 +1009,7 @@
                 <span class="kw">let </span>datacenters = datacenters.clone();
 
                 <span class="kw">async move </span>{
-                    <span class="kw">let </span>json = <span class="kw">crate</span>::config::Slot::new(serde_json::Map::default());
+                    <span class="kw">let </span>json = Arc::new(arc_swap::ArcSwap::new(Arc::new(serde_json::Map::default())));
 
                     tokio::spawn({
                         <span class="kw">let </span>phoenix = phoenix.clone();
@@ -1815,7 +1816,8 @@
 
         <span class="kw">let </span>(_tx, rx) = <span class="kw">crate</span>::signal::channel(Default::default());
         <span class="kw">let </span>socket = raw_socket_with_reuse(qcmp_port).unwrap();
-        <span class="kw">crate</span>::codec::qcmp::spawn(socket, rx.clone()).unwrap();
+        <span class="kw">let </span>pc = <span class="kw">crate</span>::codec::qcmp::port_channel();
+        <span class="kw">crate</span>::codec::qcmp::spawn(socket, pc.subscribe(), rx.clone()).unwrap();
         tokio::time::sleep(Duration::from_millis(<span class="number">150</span>)).<span class="kw">await</span>;
 
         <span class="kw">let </span>measurement =

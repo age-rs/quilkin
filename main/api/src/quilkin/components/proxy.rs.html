@@ -318,10 +318,7 @@
 <a href="#317" id="317">317</a>
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#320" id="320">320</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -473,25 +470,22 @@
                             <span class="macro">eyre::bail!</span>(<span class="string">"empty filters were not created"</span>)
                         };
 
-                        filters.store(Arc::new(
-                            <span class="kw">crate</span>::filters::FilterChain::try_create([
-                                <span class="kw">crate</span>::filters::Capture::as_filter_config(
-                                    <span class="kw">crate</span>::filters::capture::Config {
-                                        metadata_key: <span class="kw">crate</span>::filters::capture::CAPTURED_BYTES
-                                            .into(),
-                                        strategy: <span class="kw">crate</span>::filters::capture::Strategy::Suffix(
-                                            <span class="kw">crate</span>::filters::capture::Suffix {
-                                                size: tt.length <span class="kw">as _</span>,
-                                                remove: <span class="bool-val">true</span>,
-                                            },
-                                        ),
-                                    },
-                                )
-                                .unwrap(),
-                                <span class="kw">crate</span>::filters::TokenRouter::as_filter_config(<span class="prelude-val">None</span>).unwrap(),
-                            ])
-                            .unwrap(),
-                        ));
+                        <span class="kw">let </span>fc = <span class="kw">crate</span>::filters::FilterChain::try_create([
+                            <span class="kw">crate</span>::filters::Capture::as_filter_config(
+                                <span class="kw">crate</span>::filters::capture::Config {
+                                    metadata_key: <span class="kw">crate</span>::filters::capture::CAPTURED_BYTES.into(),
+                                    strategy: <span class="kw">crate</span>::filters::capture::Strategy::Suffix(
+                                        <span class="kw">crate</span>::filters::capture::Suffix {
+                                            size: tt.length <span class="kw">as _</span>,
+                                            remove: <span class="bool-val">true</span>,
+                                        },
+                                    ),
+                                },
+                            )<span class="question-mark">?</span>,
+                            <span class="kw">crate</span>::filters::TokenRouter::as_filter_config(<span class="prelude-val">None</span>)<span class="question-mark">?</span>,
+                        ])<span class="question-mark">?</span>;
+
+                        filters.store(fc);
                     }
 
                     <span class="kw">let </span>count = tt.count <span class="kw">as </span>u64;
@@ -625,7 +619,7 @@
             .phoenix()
             .phoenix_port(phoenix_port)
             .termination_timeout(<span class="self">self</span>.termination_timeout)
-            .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx, IcaoCode::default())<span class="question-mark">?</span>;
+            .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
 
         <span class="macro">tracing::info!</span>(<span class="string">"Quilkin is ready"</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(initialized) = initialized {

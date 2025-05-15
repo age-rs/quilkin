@@ -749,7 +749,11 @@
 <a href="#748" id="748">748</a>
 <a href="#749" id="749">749</a>
 <a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a></pre></div><pre class="rust"><code><span class="kw">use </span>quilkin::{
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="kw">use </span>quilkin::{
     Config,
     collections::{BufferPool, PoolBuffer},
     components::{<span class="self">self</span>, RunArgs},
@@ -1075,19 +1079,18 @@
                 <span class="kw">let </span>(shutdown, shutdown_rx) =
                     quilkin::signal::channel(quilkin::signal::ShutdownKind::Testing);
 
-                <span class="kw">let </span>config = Arc::new(Config::default());
-                config.dyn_cfg.id.store(Arc::new(spc.name.into()));
+                <span class="kw">let </span>svc = quilkin::Service::default()
+                    .xds()
+                    .xds_port(xds_port)
+                    .mds()
+                    .mds_port(mds_port);
+                <span class="kw">let </span>config = Arc::new(svc.build_config(Default::default()).unwrap());
+                <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
                 <span class="kw">let </span>provider_task = quilkin::Providers::default()
                     .fs()
                     .fs_path(path)
                     .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>);
-                <span class="kw">let </span>task = quilkin::Service::default()
-                    .xds()
-                    .xds_port(xds_port)
-                    .mds()
-                    .mds_port(mds_port)
-                    .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx, quilkin::config::IcaoCode::default())
-                    .unwrap();
+                <span class="kw">let </span>task = svc.spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx).unwrap();
 
                 <span class="self">Self</span>::Relay(RelayPail {
                     xds_port,
@@ -1148,19 +1151,19 @@
                 );
 
                 <span class="kw">let </span>config_path = path.clone();
-                <span class="kw">let </span>config = Arc::new(Config::default());
-                config.dyn_cfg.id.store(Arc::new(spc.name.into()));
+                <span class="kw">let </span>svc = quilkin::Service::default().qcmp().qcmp_port(port);
+                <span class="kw">let </span>config = Arc::new(
+                    svc.build_config(apc.icao_code)
+                        .expect(<span class="string">"failed to build agent config"</span>),
+                );
+                <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
                 <span class="kw">let </span>acfg = config.clone();
                 <span class="kw">let </span>provider_task = quilkin::Providers::default()
                     .fs()
                     .fs_path(path)
                     .grpc_push_endpoints(relay_servers)
                     .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>);
-                <span class="kw">let </span>task = quilkin::Service::default()
-                    .qcmp()
-                    .qcmp_port(port)
-                    .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx, apc.icao_code)
-                    .unwrap();
+                <span class="kw">let </span>task = svc.spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx).unwrap();
 
                 <span class="self">Self</span>::Agent(AgentPail {
                     qcmp_port: port,
@@ -1204,7 +1207,16 @@
 
                 <span class="kw">let </span>(tx, orx) = tokio::sync::oneshot::channel();
 
-                <span class="kw">let </span>config = Arc::new(Config::default());
+                <span class="kw">let </span>svc = quilkin::Service::default()
+                    .udp()
+                    .udp_port(port)
+                    .qcmp()
+                    .qcmp_port(qcmp_port)
+                    .phoenix()
+                    .phoenix_port(phoenix_port)
+                    .termination_timeout(<span class="prelude-val">None</span>);
+
+                <span class="kw">let </span>config = Arc::new(svc.build_config(Default::default()).unwrap());
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(cfg) = ppc.config {
                     <span class="kw">if </span>!cfg.clusters.is_empty() {
@@ -1212,11 +1224,7 @@
                     }
 
                     <span class="kw">if </span>!cfg.filters.is_empty() {
-                        config
-                            .dyn_cfg
-                            .filters()
-                            .unwrap()
-                            .store(Arc::new(cfg.filters));
+                        config.dyn_cfg.filters().unwrap().store(cfg.filters);
                     }
                 }
 
@@ -1242,7 +1250,7 @@
                         .modify(|clusters| clusters.insert_default(endpoints));
                 }
 
-                config.dyn_cfg.id.store(Arc::new(spc.name.into()));
+                <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
                 <span class="kw">let </span>pconfig = config.clone();
 
                 <span class="kw">let </span>(rttx, rtrx) = tokio::sync::mpsc::unbounded_channel();
