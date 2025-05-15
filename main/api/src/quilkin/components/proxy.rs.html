@@ -576,19 +576,19 @@
                             .unwrap();
 
                         runtime.block_on(<span class="kw">async move </span>{
-                            <span class="kw">let </span>client = <span class="kw">crate</span>::net::xds::AdsClient::connect(
-                                String::clone(<span class="kw-2">&amp;</span>id),
-                                management_servers,
-                            )
-                            .<span class="kw">await</span><span class="question-mark">?</span>;
-
                             <span class="kw">let </span>xds_is_healthy =
                                 ready.xds_is_healthy.read().as_ref().unwrap().clone();
 
-                            <span class="kw">let </span>_stream = client
-                                .delta_subscribe(config.clone(), xds_is_healthy.clone(), tx, SUBS)
-                                .<span class="kw">await
-                                </span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>;
+                            <span class="kw">let </span>_stream = <span class="kw">crate</span>::net::xds::delta_subscribe(
+                                config,
+                                id,
+                                management_servers,
+                                xds_is_healthy.clone(),
+                                tx,
+                                SUBS,
+                            )
+                            .<span class="kw">await
+                            </span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>;
 
                             <span class="kw">let _ </span>= shutdown_rx.changed().<span class="kw">await</span>;
                             <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, eyre::Error&gt;(())

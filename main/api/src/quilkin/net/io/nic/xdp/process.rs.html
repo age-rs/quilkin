@@ -898,7 +898,9 @@
 <a href="#897" id="897">897</a>
 <a href="#898" id="898">898</a>
 <a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     filters::{<span class="self">self</span>, Filter <span class="kw">as _</span>},
     metrics::{<span class="self">self</span>, AsnInfo},
     net::{
@@ -1456,7 +1458,9 @@
     state: <span class="kw-2">&amp;mut </span>State,
     tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Packet&gt;, (PipelineError, Packet)&gt; {
-    <span class="kw">let </span>source_addr = packet.headers.source_address();
+    <span class="kw">let </span><span class="kw-2">mut </span>source_addr = packet.headers.source_address();
+    source_addr.set_ip(source_addr.ip().to_canonical());
+
     <span class="kw">let </span><span class="kw-2">mut </span>ctx =
         filters::ReadContext::new(cm, source_addr.into(), packet, <span class="kw-2">&amp;mut </span>state.destinations);
 

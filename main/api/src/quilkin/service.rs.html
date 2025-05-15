@@ -719,7 +719,23 @@
 <a href="#718" id="718">718</a>
 <a href="#719" id="719">719</a>
 <a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
 <span class="kw">use </span>std::{future::Future, sync::Arc};
 
 <span class="kw">use crate</span>::{
@@ -810,6 +826,13 @@
         default_value_t = <span class="number">7800
     </span>)]
     </span>xds_port: u16,
+    <span class="doccomment">/// Whether to serve xDS and/or mDS requests.
+    </span><span class="attr">#[arg(
+        long = <span class="string">"service.grpc"</span>,
+        env = <span class="string">"QUILKIN_SERVICE_GRPC"</span>,
+        default_value_t = <span class="bool-val">false
+    </span>)]
+    </span>grpc_enabled: bool,
     <span class="doccomment">/// A PEM encoded certificate, if supplied, applies to the mds and xds service(s)
     </span><span class="attr">#[clap(
         long = <span class="string">"service.tls.cert"</span>,
@@ -861,6 +884,7 @@
             udp_workers: std::num::NonZeroUsize::new(num_cpus::get()).unwrap(),
             xds_enabled: &lt;<span class="kw">_</span>&gt;::default(),
             xds_port: <span class="number">7800</span>,
+            grpc_enabled: <span class="bool-val">false</span>,
             xdp: &lt;<span class="kw">_</span>&gt;::default(),
             tls_cert: <span class="prelude-val">None</span>,
             tls_key: <span class="prelude-val">None</span>,
@@ -936,6 +960,13 @@
         <span class="self">self
     </span>}
 
+    <span class="kw">pub fn </span>grpc(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.mds_enabled = <span class="bool-val">true</span>;
+        <span class="self">self</span>.xds_enabled = <span class="bool-val">true</span>;
+        <span class="self">self</span>.grpc_enabled = <span class="bool-val">true</span>;
+        <span class="self">self
+    </span>}
+
     <span class="kw">pub fn </span>xdp(<span class="kw-2">mut </span><span class="self">self</span>, xdp_opts: XdpOptions) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.xdp = xdp_opts;
         <span class="self">self
@@ -948,6 +979,7 @@
             || <span class="self">self</span>.phoenix_enabled
             || <span class="self">self</span>.xds_enabled
             || <span class="self">self</span>.mds_enabled
+            || <span class="self">self</span>.grpc_enabled
     }
 
     <span class="kw">pub fn </span>build_config(<span class="kw-2">&amp;</span><span class="self">self</span>, icao_code: IcaoCode) -&gt; eyre::Result&lt;Config&gt; {
@@ -1053,11 +1085,11 @@
         <span class="prelude-val">Ok</span>(tokio::spawn(<span class="kw">async move </span>{
             tokio::task::spawn(<span class="kw">async move </span>{
                 <span class="kw">let </span>(task, result) = <span class="macro">tokio::select!</span> {
-                    result = mds_task =&gt; (<span class="string">"mds"</span>, result),
                     result = phoenix_task =&gt; (<span class="string">"phoenix"</span>, result),
                     result = qcmp_task =&gt; (<span class="string">"qcmp"</span>, result),
                     result = udp_task =&gt; (<span class="string">"udp"</span>, result),
                     result = xds_task =&gt; (<span class="string">"xds"</span>, result),
+                    result = mds_task =&gt; (<span class="string">"mds"</span>, result),
                 };
 
                 <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = result {
@@ -1158,11 +1190,37 @@
     }
 
     <span class="doccomment">/// Spawns an xDS server if enabled, otherwise returns a future which never completes.
+    </span><span class="kw">fn </span>publish_xds(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.xds_enabled &amp;&amp; !<span class="self">self</span>.grpc_enabled {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(either::Left(std::future::pending()));
+        }
+
+        <span class="kw">use </span>futures::TryFutureExt <span class="kw">as _</span>;
+
+        <span class="kw">let </span>listener = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.xds_port))<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(either::Right(
+            tokio::spawn(
+                <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
+                    config.clone(),
+                    <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
+                )
+                .management_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>,
+            )
+            .map_err(From::from)
+            .and_then(std::future::ready),
+        ))
+    }
+
+    <span class="doccomment">/// Spawns an xDS server if enabled, otherwise returns a future which never completes.
     </span><span class="kw">fn </span>publish_mds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
     ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
-        <span class="kw">if </span>!<span class="self">self</span>.mds_enabled {
+        <span class="kw">if </span>!<span class="self">self</span>.mds_enabled &amp;&amp; !<span class="self">self</span>.grpc_enabled {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(either::Left(std::future::pending()));
         }
 
@@ -1178,32 +1236,6 @@
                     <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
                 )
                 .relay_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>,
-            )
-            .map_err(From::from)
-            .and_then(std::future::ready),
-        ))
-    }
-
-    <span class="doccomment">/// Spawns an xDS server if enabled, otherwise returns a future which never completes.
-    </span><span class="kw">fn </span>publish_xds(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
-        <span class="kw">if </span>!<span class="self">self</span>.xds_enabled {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(either::Left(std::future::pending()));
-        }
-
-        <span class="kw">use </span>futures::TryFutureExt <span class="kw">as _</span>;
-
-        <span class="kw">let </span>listener = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.xds_port))<span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(either::Right(
-            tokio::spawn(
-                <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
-                    config.clone(),
-                    <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
-                )
-                .management_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>,
             )
             .map_err(From::from)
             .and_then(std::future::ready),

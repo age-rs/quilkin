@@ -297,7 +297,8 @@ xDS server without the relay needing to maintain a list
 of xDS servers to connect to in the relay itself.</p>
 <div class="table-wrapper"><table><thead><tr><th>Method Name</th><th>Request Type</th><th>Response Type</th><th>Description</th></tr></thead><tbody>
 <tr><td>StreamAggregatedResources</td><td><a href="#envoy-service-discovery-v3-DiscoveryResponse">.envoy.service.discovery.v3.DiscoveryResponse</a> stream</td><td><a href="#envoy-service-discovery-v3-DiscoveryRequest">.envoy.service.discovery.v3.DiscoveryRequest</a> stream</td><td>This RPC is not supported but remains here as part of the xDS standard, as Quilkin only uses a delta configuration transport for performance reasons.</td></tr>
-<tr><td>DeltaAggregatedResources</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryResponse">.envoy.service.discovery.v3.DeltaDiscoveryResponse</a> stream</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryRequest">.envoy.service.discovery.v3.DeltaDiscoveryRequest</a> stream</td><td>Delta (Incremental) xDS implementation</td></tr>
+<tr><td>DeltaAggregatedResources</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryResponse">.envoy.service.discovery.v3.DeltaDiscoveryResponse</a> stream</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryRequest">.envoy.service.discovery.v3.DeltaDiscoveryRequest</a> stream</td><td>Delta (Incremental) xDS implementation, used by agents and/or management servers to update the relay with their configuration</td></tr>
+<tr><td>SubscribeDeltaResources</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryRequest">.envoy.service.discovery.v3.DeltaDiscoveryRequest</a> stream</td><td><a href="#envoy-service-discovery-v3-DeltaDiscoveryResponse">.envoy.service.discovery.v3.DeltaDiscoveryResponse</a> stream</td><td>Used by proxies to subscribe to changes from the relay</td></tr>
 </tbody></table>
 </div>
 <p><a name="quilkin_config_v1alpha1_config-proto"></a></p>
