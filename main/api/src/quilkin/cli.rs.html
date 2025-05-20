@@ -340,7 +340,17 @@
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
 <a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -604,12 +614,12 @@
                 .read_config(<span class="kw-2">&amp;</span><span class="self">self</span>.config, <span class="self">self</span>.locality.icao_code, locality.clone())<span class="question-mark">?</span>;
 
         <span class="kw">let </span>ready = Arc::&lt;std::sync::atomic::AtomicBool&gt;::default();
-        <span class="kw">let </span>(shutdown_tx, <span class="kw-2">mut </span>shutdown_rx) = <span class="kw">crate</span>::signal::spawn_handler();
+        <span class="kw">let </span>(shutdown_tx, shutdown_rx) = <span class="kw">crate</span>::signal::spawn_handler();
         <span class="kw">if </span><span class="self">self</span>.admin.enabled {
             <span class="kw">crate</span>::components::admin::server(
                 config.clone(),
                 ready.clone(),
-                shutdown_tx,
+                shutdown_tx.clone(),
                 <span class="self">self</span>.admin.address,
             );
         }
@@ -626,16 +636,26 @@
             <span class="self">self</span>.providers
                 .spawn_providers(<span class="kw-2">&amp;</span>config, ready.clone(), locality.clone());
 
-        <span class="kw">let </span>service_task = <span class="self">self</span>.service.spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>service_task = <span class="self">self</span>.service.spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
 
         <span class="kw">if </span>provider_tasks.is_empty() {
             ready.store(<span class="bool-val">true</span>, std::sync::atomic::Ordering::SeqCst);
         }
 
-        <span class="macro">tokio::select!</span> {
-            result = shutdown_rx.changed() =&gt; result.map_err(From::from),
-            <span class="prelude-val">Some</span>(result) = provider_tasks.join_next() =&gt; result<span class="question-mark">?</span>,
-            result = service_task =&gt; result<span class="question-mark">?</span>,
+        <span class="kw">loop </span>{
+            <span class="macro">tokio::select!</span> {
+                <span class="prelude-val">Some</span>(result) = provider_tasks.join_next() =&gt; {
+                    <span class="macro">tracing::error!</span>(task_result=<span class="question-mark">?</span>result, <span class="string">"provider task completed unexpectedly, shutting down."</span>);
+                    <span class="comment">// Trigger shutdown so we can drain the active sessions in the service_task
+                    </span><span class="kw">if let </span><span class="prelude-val">Err</span>(error) = shutdown_tx.send(<span class="kw">crate</span>::signal::ShutdownKind::Normal) {
+                        <span class="macro">tracing::error!</span>(error=<span class="question-mark">?</span>error, <span class="string">"failed to trigger shutdown"</span>);
+                        <span class="kw">return </span><span class="prelude-val">Err</span>(error.into());
+                    }
+                },
+                result = <span class="kw-2">&amp;mut </span>service_task =&gt; {
+                    <span class="kw">return </span>result<span class="question-mark">?</span>;
+                },
+            }
         }
     }
 }
