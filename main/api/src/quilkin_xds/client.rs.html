@@ -648,7 +648,10 @@
 <a href="#647" id="647">647</a>
 <a href="#648" id="648">648</a>
 <a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1218,7 +1221,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>resource_subscriptions = resource_subscriptions;
 
             <span class="kw">loop </span>{
-                <span class="macro">tracing::trace!</span>(<span class="string">"creating discovery response handler"</span>);
+                <span class="macro">tracing::info!</span>(<span class="string">"creating discovery response handler"</span>);
                 <span class="kw">let </span><span class="kw-2">mut </span>response_stream = <span class="kw">crate</span>::config::handle_delta_discovery_responses(
                     identifier.clone(),
                     stream,
@@ -1228,6 +1231,7 @@
                     notifier.clone(),
                 );
 
+                <span class="macro">tracing::info!</span>(<span class="string">"entering xDS stream loop"</span>);
                 <span class="kw">loop </span>{
                     <span class="kw">let </span>next_response =
                         tokio::time::timeout(IDLE_REQUEST_INTERVAL, response_stream.next());
@@ -1276,9 +1280,11 @@
                     DeltaClientStream::connect(<span class="kw-2">&amp;</span>endpoints, identifier.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
 
                 resource_subscriptions = handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="macro">tracing::info!</span>(<span class="string">"received first response"</span>);
 
                 ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
                     .<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="macro">tracing::info!</span>(<span class="string">"xDS connection refreshed"</span>);
             }
         }
         .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"xds_client_stream"</span>, id)),
