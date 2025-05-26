@@ -900,7 +900,8 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     filters::{<span class="self">self</span>, Filter <span class="kw">as _</span>},
     metrics::{<span class="self">self</span>, AsnInfo},
     net::{
@@ -1569,7 +1570,8 @@
     tx_slab: <span class="kw-2">&amp;mut </span>StackSlab&lt;TXN&gt;,
     jitter: i64,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Packet&gt;, (PipelineError, Packet)&gt; {
-    <span class="kw">let </span>server_addr = packet.headers.source_address();
+    <span class="kw">let </span><span class="kw-2">mut </span>server_addr = packet.headers.source_address();
+    server_addr.set_ip(server_addr.ip().to_canonical());
 
     <span class="kw">let </span><span class="prelude-val">Some</span>((client_addr, asn)) = state.lookup_client(server_addr, packet.headers.udp.destination)
     <span class="kw">else </span>{
