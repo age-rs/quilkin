@@ -764,8 +764,7 @@
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#766" id="766">766</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1048,7 +1047,6 @@
                         };
 
                         metrics::qcmp::packets_total_valid(size, <span class="kw-2">&amp;</span>asn_info);
-                        metrics::qcmp::ingress_latency(client_timestamp, received_at, <span class="kw-2">&amp;</span>asn_info);
                         Protocol::ping_reply(nonce, client_timestamp, received_at)
                             .encode(<span class="kw-2">&amp;mut </span>output_buf);
 

@@ -781,7 +781,12 @@
 <a href="#780" id="780">780</a>
 <a href="#781" id="781">781</a>
 <a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1297,6 +1302,11 @@
                 <span class="kw">let </span><span class="prelude-val">Some</span>(filters) = <span class="self">self</span>.dyn_cfg.filters() <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                 };
+
+                <span class="kw">if </span>resources.is_empty() &amp;&amp; !removed_resources.is_empty() {
+                    <span class="macro">tracing::info!</span>(<span class="string">"ignoring filter chain removal"</span>);
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+                }
 
                 <span class="comment">// Server should only ever send exactly one filter chain, more or less indicates a bug
                 </span><span class="kw">let </span><span class="prelude-val">Some</span>(res) = resources.pop() <span class="kw">else </span>{

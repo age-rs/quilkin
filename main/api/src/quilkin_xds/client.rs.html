@@ -651,7 +651,30 @@
 <a href="#650" id="650">650</a>
 <a href="#651" id="651">651</a>
 <a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -867,7 +890,7 @@
         <span class="kw">let </span>client = connect_to_server
             .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"client_connect"</span>))
             .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="macro">tracing::info!</span>(<span class="string">"Connected to management server"</span>);
+        <span class="macro">tracing::info!</span>(endpoint = %client.<span class="number">1</span>.uri(), <span class="string">"Connected to management server"</span>);
         <span class="prelude-val">Ok</span>(client)
     }
 }
@@ -1167,8 +1190,17 @@
         stream: <span class="kw-2">&amp;mut </span>tonic::Streaming&lt;DeltaDiscoveryResponse&gt;,
         resources: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)])],
     ) -&gt; eyre::Result&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)]&gt; {
-        <span class="kw">match </span>stream.message().<span class="kw">await</span><span class="question-mark">? </span>{
-            <span class="prelude-val">Some</span>(first) =&gt; {
+        <span class="kw">const </span>TIMEOUT: std::time::Duration = std::time::Duration::from_secs(<span class="number">30</span>);
+
+        <span class="kw">match </span>tokio::time::timeout(TIMEOUT, stream.message()).<span class="kw">await </span>{
+            <span class="prelude-val">Err</span>(_elapsed) =&gt; {
+                <span class="macro">eyre::bail!</span>(<span class="string">"timed out after {TIMEOUT:?} waiting for first response"</span>);
+            }
+            <span class="prelude-val">Ok</span>(result) =&gt; {
+                <span class="kw">let </span><span class="prelude-val">Some</span>(first) = result<span class="question-mark">? </span><span class="kw">else </span>{
+                    <span class="macro">eyre::bail!</span>(<span class="string">"expected at least one response from the management server"</span>);
+                };
+
                 <span class="kw">if </span>first.type_url != <span class="string">"ignore-me" </span>{
                     <span class="macro">tracing::warn!</span>(<span class="string">"expected `ignore-me` response from management server"</span>);
                 }
@@ -1182,9 +1214,6 @@
                             first.system_version_info
                         )
                     })
-            }
-            <span class="kw">_ </span>=&gt; {
-                <span class="macro">eyre::bail!</span>(<span class="string">"expected at least one response from the management server"</span>);
             }
         }
     }
@@ -1247,8 +1276,8 @@
                         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
                             <span class="kw">if </span><span class="kw">crate</span>::is_broken_pipe(<span class="kw-2">&amp;</span>error) {
                                 <span class="macro">tracing::info!</span>(
-                                    <span class="string">"remote {} terminated the connection"</span>,
-                                    connected_endpoint.uri(),
+                                    endpoint = %connected_endpoint.uri(),
+                                    <span class="string">"remoteterminated the connection"</span>,
                                 );
                             } <span class="kw">else </span>{
                                 <span class="macro">tracing::warn!</span>(%error, <span class="string">"xds stream error"</span>);
@@ -1275,12 +1304,29 @@
                 // getting rid of any state the previously connected server gave us
                 </span>local.clear(<span class="kw-2">&amp;</span>config, <span class="prelude-val">None</span>);
 
-                <span class="macro">tracing::info!</span>(<span class="string">"Lost connection to xDS, retrying"</span>);
-                (ds, stream, connected_endpoint) =
-                    DeltaClientStream::connect(<span class="kw-2">&amp;</span>endpoints, identifier.clone()).<span class="kw">await</span><span class="question-mark">?</span>;
+                <span class="kw">loop </span>{
+                    <span class="macro">tracing::info!</span>(<span class="string">"Lost connection to xDS, retrying"</span>);
+                    <span class="kw">match </span>DeltaClientStream::connect(<span class="kw-2">&amp;</span>endpoints, identifier.clone()).<span class="kw">await </span>{
+                        <span class="prelude-val">Ok</span>(res) =&gt; {
+                            (ds, stream, connected_endpoint) = res;
+                        }
+                        <span class="prelude-val">Err</span>(error) =&gt; {
+                            <span class="macro">tracing::error!</span>(%error, <span class="string">"failed to establish connection"</span>);
+                            <span class="kw">continue</span>;
+                        }
+                    }
 
-                resource_subscriptions = handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await</span><span class="question-mark">?</span>;
-                <span class="macro">tracing::info!</span>(<span class="string">"received first response"</span>);
+                    <span class="kw">match </span>handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await </span>{
+                        <span class="prelude-val">Ok</span>(rs) =&gt; {
+                            resource_subscriptions = rs;
+                            <span class="macro">tracing::info!</span>(<span class="string">"received first response"</span>);
+                            <span class="kw">break</span>;
+                        }
+                        <span class="prelude-val">Err</span>(error) =&gt; {
+                            <span class="macro">tracing::error!</span>(%error, <span class="string">"failed to receive first response"</span>);
+                        }
+                    }
+                }
 
                 ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
                     .<span class="kw">await</span><span class="question-mark">?</span>;
