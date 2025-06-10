@@ -667,14 +667,7 @@
 <a href="#666" id="666">666</a>
 <a href="#667" id="667">667</a>
 <a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#669" id="669">669</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -696,7 +689,7 @@
     time::Duration,
 };
 
-<span class="kw">use </span>eyre::ContextCompat;
+<span class="kw">use </span>eyre::{Context, ContextCompat};
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>rand::Rng;
 <span class="kw">use </span>tonic::transport::{Endpoint, Error <span class="kw">as </span>TonicError, channel::Channel <span class="kw">as </span>TonicChannel};
@@ -900,7 +893,7 @@
         <span class="self">self</span>,
         config: Arc&lt;C&gt;,
         is_healthy: Arc&lt;AtomicBool&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;DeltaSubscription, <span class="self">Self</span>&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;tokio::task::JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;, <span class="self">Self</span>&gt; {
         <span class="kw">const </span>LEADERSHIP_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(<span class="number">1</span>);
         <span class="kw">let </span>identifier = String::from(<span class="kw-2">&amp;*</span><span class="self">self</span>.identifier);
 
@@ -1003,7 +996,7 @@
             .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"handle_delta_discovery_response"</span>, id)),
         );
 
-        <span class="prelude-val">Ok</span>(DeltaSubscription { handle })
+        <span class="prelude-val">Ok</span>(handle)
     }
 }
 
@@ -1151,17 +1144,6 @@
     }
 }
 
-<span class="kw">pub struct </span>DeltaSubscription {
-    handle: tokio::task::JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;,
-}
-
-<span class="kw">impl </span>Drop <span class="kw">for </span>DeltaSubscription {
-    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="macro">tracing::debug!</span>(<span class="string">"dropped client delta stream"</span>);
-        <span class="self">self</span>.handle.abort();
-    }
-}
-
 <span class="doccomment">/// Attempts to start a new delta stream to the xDS management server, if the
 /// management server does not support delta xDS we return the client as an error
 </span><span class="attr">#[allow(clippy::type_complexity)]
@@ -1172,7 +1154,7 @@
     is_healthy: Arc&lt;AtomicBool&gt;,
     notifier: <span class="prelude-ty">Option</span>&lt;tokio::sync::mpsc::UnboundedSender&lt;String&gt;&gt;,
     resources: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)])],
-) -&gt; eyre::Result&lt;DeltaSubscription&gt; {
+) -&gt; eyre::Result&lt;tokio::task::JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;&gt; {
     <span class="kw">let </span>(<span class="kw-2">mut </span>ds, <span class="kw-2">mut </span>stream, <span class="kw-2">mut </span>connected_endpoint) = <span class="kw">match </span>DeltaClientStream::connect(
         <span class="kw-2">&amp;</span>endpoints,
         identifier.clone(),
@@ -1270,7 +1252,9 @@
                             is_healthy.store(<span class="bool-val">true</span>, Ordering::SeqCst);
 
                             <span class="macro">tracing::trace!</span>(<span class="string">"received delta response"</span>);
-                            ds.send_response(response).<span class="kw">await</span><span class="question-mark">?</span>;
+                            ds.send_response(response)
+                                .<span class="kw">await
+                                </span>.wrap_err(<span class="string">"send_response failed"</span>)<span class="question-mark">?</span>;
                             <span class="kw">continue</span>;
                         }
                         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
@@ -1291,7 +1275,8 @@
                         <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                             <span class="macro">tracing::debug!</span>(<span class="string">"exceeded idle request interval sending new requests"</span>);
                             ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
-                                .<span class="kw">await</span><span class="question-mark">?</span>;
+                                .<span class="kw">await
+                                </span>.wrap_err(<span class="string">"refresh failed"</span>)<span class="question-mark">?</span>;
                         }
                     }
                 }
@@ -1329,14 +1314,15 @@
                 }
 
                 ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
-                    .<span class="kw">await</span><span class="question-mark">?</span>;
+                    .<span class="kw">await
+                    </span>.wrap_err(<span class="string">"refresh failed"</span>)<span class="question-mark">?</span>;
                 <span class="macro">tracing::info!</span>(<span class="string">"xDS connection refreshed"</span>);
             }
         }
         .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"xds_client_stream"</span>, id)),
     );
 
-    <span class="prelude-val">Ok</span>(DeltaSubscription { handle })
+    <span class="prelude-val">Ok</span>(handle)
 }
 
 <span class="attr">#[derive(Debug, thiserror::Error)]
