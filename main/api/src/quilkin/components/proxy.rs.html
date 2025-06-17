@@ -310,15 +310,7 @@
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -417,15 +409,16 @@
 }
 
 <span class="kw">impl </span>Proxy {
-    <span class="kw">pub async fn </span>run(
+    <span class="kw">pub fn </span>run(
         <span class="kw-2">mut </span><span class="self">self</span>,
         RunArgs {
             config,
             ready,
-            <span class="kw-2">mut </span>shutdown_rx,
+            shutdown,
         }: RunArgs&lt;Ready&gt;,
         initialized: <span class="prelude-ty">Option</span>&lt;tokio::sync::oneshot::Sender&lt;()&gt;&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+    ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;(<span class="kw">crate</span>::signal::ShutdownHandler, <span class="kw">crate</span>::Result&lt;()&gt;)&gt;&gt;
+    {
         <span class="kw">let </span>_mmdb_task = <span class="self">self</span>.mmdb.as_ref().map(|source| {
             <span class="kw">let </span>source = source.clone();
             tokio::spawn(<span class="kw">async move </span>{
@@ -558,7 +551,7 @@
                 .name(<span class="string">"proxy-subscription"</span>.into())
                 .spawn({
                     <span class="kw">let </span>config = config.clone();
-                    <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = shutdown_rx.clone();
+                    <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = shutdown.shutdown_rx();
                     <span class="kw">let </span>management_servers = <span class="self">self</span>.management_servers.clone();
                     <span class="kw">let </span>tx = <span class="self">self</span>.notifier.clone();
 
@@ -619,23 +612,14 @@
             .phoenix()
             .phoenix_port(phoenix_port)
             .termination_timeout(<span class="self">self</span>.termination_timeout)
-            .spawn_services(<span class="kw-2">&amp;</span>config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
+            .spawn_services(<span class="kw-2">&amp;</span>config, shutdown)<span class="question-mark">?</span>;
 
         <span class="macro">tracing::info!</span>(<span class="string">"Quilkin is ready"</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(initialized) = initialized {
             <span class="kw">let _ </span>= initialized.send(());
         }
 
-        shutdown_rx
-            .changed()
-            .<span class="kw">await
-            </span>.map_err(|error| <span class="macro">eyre::eyre!</span>(error))<span class="question-mark">?</span>;
-
-        <span class="kw">if let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(error)) = svc_task.<span class="kw">await </span>{
-            <span class="macro">tracing::error!</span>(%error, <span class="string">"Quilkin proxy services exited with error"</span>);
-        }
-
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(svc_task)
     }
 }
 </code></pre></div></section></main></body></html>

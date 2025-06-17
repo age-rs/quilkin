@@ -786,7 +786,12 @@
 <a href="#785" id="785">785</a>
 <a href="#786" id="786">786</a>
 <a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1012,6 +1017,7 @@
     <span class="kw">fn </span>on_changed(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         control_plane: quilkin_xds::server::ControlPlane&lt;<span class="self">Self</span>&gt;,
+        <span class="kw-2">mut </span>shutdown: tokio::sync::watch::Receiver&lt;()&gt;,
     ) -&gt; <span class="kw">impl </span>std::future::Future&lt;Output = ()&gt; + Send + <span class="lifetime">'static </span>{
         <span class="macro">tracing::trace!</span>(<span class="string">"waiting for changes"</span>);
 
@@ -1101,7 +1107,11 @@
                 });
             }
 
-            ls.join_all().<span class="kw">await</span>;
+            drop(shutdown.changed().<span class="kw">await</span>);
+            ls.abort_all();
+
+            <span class="comment">// join_all panics if a task is cancelled, we don't care
+            </span><span class="kw">while </span>ls.join_next().<span class="kw">await</span>.is_some() {}
         }
     }
 

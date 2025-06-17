@@ -735,12 +735,66 @@
 <a href="#734" id="734">734</a>
 <a href="#735" id="735">735</a>
 <a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
-<span class="kw">use </span>std::{future::Future, sync::Arc};
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
+<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use crate</span>::{
     components::proxy::SessionPool,
     config::{Config, IcaoCode},
+    signal::ShutdownHandler,
 };
 
 <span class="kw">const </span>ETC_CONFIG_PATH: <span class="kw-2">&amp;</span>str = <span class="string">"/etc/quilkin/quilkin.yaml"</span>;
@@ -865,9 +919,11 @@
     </span>tls_key_path: <span class="prelude-ty">Option</span>&lt;std::path::PathBuf&gt;,
     <span class="attr">#[clap(long = <span class="string">"termination-timeout"</span>)]
     </span>termination_timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Timeout&gt;,
+    <span class="attr">#[clap(skip)]
+    </span>testing: bool,
 }
 
-<span class="kw">pub type </span>Finalizer = Box&lt;<span class="kw">dyn </span>FnOnce(<span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx) + Send&gt;;
+<span class="kw">pub type </span>Finalizer = Box&lt;<span class="kw">dyn </span>FnOnce() + Send&gt;;
 
 <span class="kw">impl </span>Default <span class="kw">for </span>Service {
     <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
@@ -891,6 +947,7 @@
             tls_cert_path: <span class="prelude-val">None</span>,
             tls_key_path: <span class="prelude-val">None</span>,
             termination_timeout: <span class="prelude-val">None</span>,
+            testing: <span class="bool-val">false</span>,
         }
     }
 }
@@ -969,6 +1026,11 @@
 
     <span class="kw">pub fn </span>xdp(<span class="kw-2">mut </span><span class="self">self</span>, xdp_opts: XdpOptions) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.xdp = xdp_opts;
+        <span class="self">self
+    </span>}
+
+    <span class="kw">pub fn </span>testing(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.testing = <span class="bool-val">true</span>;
         <span class="self">self
     </span>}
 
@@ -1070,71 +1132,49 @@
     </span><span class="kw">pub fn </span>spawn_services(
         <span class="kw-2">mut </span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-        shutdown_rx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;<span class="kw">crate</span>::Result&lt;()&gt;&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>shutdown_rx = shutdown_rx.clone();
-
-        <span class="kw">let </span>mds_task = <span class="self">self</span>.publish_mds(config)<span class="question-mark">?</span>;
-        <span class="kw">let </span>(phoenix_task, phoenix_finalizer) = <span class="self">self</span>.publish_phoenix(config)<span class="question-mark">?</span>;
-        <span class="comment">// We need to call this before qcmp since if we use XDP we handle QCMP
-        // internally without a separate task
-        </span><span class="kw">let </span>(udp_task, finalizer, session_pool) = <span class="self">self</span>.publish_udp(config)<span class="question-mark">?</span>;
-        <span class="kw">let </span>qcmp_task = <span class="self">self</span>.publish_qcmp(config, <span class="kw-2">&amp;</span>shutdown_rx)<span class="question-mark">?</span>;
-        <span class="kw">let </span>xds_task = <span class="self">self</span>.publish_xds(config)<span class="question-mark">?</span>;
+        <span class="kw-2">mut </span>shutdown: ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;(ShutdownHandler, <span class="kw">crate</span>::Result&lt;()&gt;)&gt;&gt; {
+        {
+            <span class="kw">let </span>shutdown = <span class="kw-2">&amp;mut </span>shutdown;
+            <span class="self">self</span>.publish_mds(config, shutdown)<span class="question-mark">?</span>;
+            <span class="self">self</span>.publish_phoenix(config, shutdown)<span class="question-mark">?</span>;
+            <span class="comment">// We need to call this before qcmp since if we use XDP we handle QCMP
+            // internally without a separate task
+            </span><span class="self">self</span>.publish_udp(config, shutdown)<span class="question-mark">?</span>;
+            <span class="self">self</span>.publish_qcmp(config, shutdown)<span class="question-mark">?</span>;
+            <span class="self">self</span>.publish_xds(config, shutdown)<span class="question-mark">?</span>;
+        }
 
         <span class="prelude-val">Ok</span>(tokio::spawn(<span class="kw">async move </span>{
-            tokio::task::spawn(<span class="kw">async move </span>{
-                <span class="kw">let </span>(task, result) = <span class="macro">tokio::select!</span> {
-                    result = phoenix_task =&gt; (<span class="string">"phoenix"</span>, result),
-                    result = qcmp_task =&gt; (<span class="string">"qcmp"</span>, result),
-                    result = udp_task =&gt; (<span class="string">"udp"</span>, result),
-                    result = xds_task =&gt; (<span class="string">"xds"</span>, result),
-                    result = mds_task =&gt; (<span class="string">"mds"</span>, result),
-                };
+            <span class="kw">let </span>(tx, rx, results) = shutdown.await_any_then_shutdown().<span class="kw">await</span>;
 
-                <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = result {
+            <span class="kw">let </span><span class="kw-2">mut </span>errors = <span class="number">0</span>;
+            <span class="kw">for </span>(task, res) <span class="kw">in </span><span class="kw-2">&amp;</span>results {
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = res {
                     <span class="macro">tracing::error!</span>(task, %error, <span class="string">"service task failed"</span>);
-                }
-            });
-
-            shutdown_rx.changed().<span class="kw">await</span><span class="question-mark">?</span>;
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(finalizer) = finalizer {
-                (finalizer)(<span class="kw-2">&amp;</span>shutdown_rx);
-
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(session_pool) = session_pool {
-                    <span class="macro">tracing::info!</span>(sessions = %session_pool.sessions().len(), <span class="string">"waiting for active sessions to expire"</span>);
-                    <span class="kw">let </span>start = std::time::Instant::now();
-
-                    <span class="kw">let </span><span class="kw-2">mut </span>sessions_check =
-                        tokio::time::interval(std::time::Duration::from_millis(<span class="number">100</span>));
-
-                    <span class="kw">loop </span>{
-                        sessions_check.tick().<span class="kw">await</span>;
-                        <span class="kw">let </span>elapsed = start.elapsed();
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(tt) = <span class="kw-2">&amp;</span><span class="self">self</span>.termination_timeout {
-                            <span class="kw">if </span>elapsed &gt; <span class="kw-2">**</span>tt {
-                                <span class="macro">tracing::info!</span>(
-                                    <span class="question-mark">?</span>elapsed,
-                                    <span class="string">"termination timeout was reached before all sessions expired"
-                                </span>);
-                                <span class="kw">break</span>;
-                            }
-                        }
-
-                        <span class="kw">if </span>session_pool.sessions().is_empty() {
-                            <span class="macro">tracing::info!</span>(shutdown_duration = <span class="question-mark">?</span>elapsed, <span class="string">"all sessions expired"</span>);
-                            <span class="kw">break</span>;
-                        }
-                    }
-                }
-
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(pfin) = phoenix_finalizer {
-                    (pfin)(<span class="kw-2">&amp;</span>shutdown_rx);
+                    errors += <span class="number">1</span>;
                 }
             }
 
-            <span class="prelude-val">Ok</span>(())
+            <span class="kw">let </span>res = <span class="kw">match </span>errors {
+                <span class="number">0 </span>=&gt; <span class="prelude-val">Ok</span>(()),
+                <span class="number">1 </span>=&gt; <span class="prelude-val">Err</span>(results.into_iter().find_map(|(<span class="kw">_</span>, res)| res.err()).unwrap()),
+                <span class="kw">_ </span>=&gt; {
+                    <span class="kw">use </span>std::fmt::Write <span class="kw">as _</span>;
+                    <span class="kw">let </span><span class="kw-2">mut </span>err_str = String::new();
+                    <span class="macro">writeln!</span>(<span class="kw-2">&amp;mut </span>err_str, <span class="string">"encountered {errors} errors:"</span>).unwrap();
+
+                    <span class="kw">for </span>(which, res) <span class="kw">in </span>results {
+                        <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = res {
+                            <span class="macro">writeln!</span>(<span class="kw-2">&amp;mut </span>err_str, <span class="string">"  {which}: {error:#}"</span>).unwrap();
+                        }
+                    }
+
+                    <span class="prelude-val">Err</span>(eyre::Report::msg(err_str))
+                }
+            };
+
+            (ShutdownHandler::new(tx, rx), res)
         }))
     }
 
@@ -1142,117 +1182,136 @@
     </span><span class="kw">fn </span>publish_phoenix(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;(
-        <span class="kw">impl </span>std::future::Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;,
-        <span class="prelude-ty">Option</span>&lt;Finalizer&gt;,
-    )&gt; {
-        <span class="kw">if </span><span class="self">self</span>.phoenix_enabled {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(datacenters) = config.dyn_cfg.datacenters() <span class="kw">else </span>{
-                <span class="macro">tracing::info!</span>(
-                    <span class="string">"not starting phoenix service even though it was requested, datacenters were not configured"
-                </span>);
-                <span class="kw">return </span><span class="prelude-val">Ok</span>((std::future::pending(), <span class="prelude-val">None</span>));
-            };
-
-            <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.qcmp_port, <span class="string">"starting phoenix service"</span>);
-            <span class="kw">let </span>phoenix = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.phoenix_port))<span class="question-mark">?</span>;
-            <span class="kw">let </span>finalizer = <span class="kw">crate</span>::net::phoenix::spawn(
-                phoenix,
-                datacenters.clone(),
-                <span class="kw">crate</span>::net::phoenix::Phoenix::new(<span class="kw">crate</span>::codec::qcmp::QcmpMeasurement::new()<span class="question-mark">?</span>),
-            )<span class="question-mark">?</span>;
-
-            <span class="kw">return </span><span class="prelude-val">Ok</span>((std::future::pending(), <span class="prelude-val">Some</span>(finalizer)));
+        shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.phoenix_enabled {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="prelude-val">Ok</span>((std::future::pending(), <span class="prelude-val">None</span>))
+        <span class="kw">let </span><span class="prelude-val">Some</span>(datacenters) = config.dyn_cfg.datacenters() <span class="kw">else </span>{
+            <span class="macro">tracing::info!</span>(
+                <span class="string">"not starting phoenix service even though it was requested, datacenters were not configured"
+            </span>);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+        };
+
+        <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.qcmp_port, <span class="string">"starting phoenix service"</span>);
+        <span class="kw">let </span>phoenix = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.phoenix_port))<span class="question-mark">?</span>;
+        <span class="kw">let </span>finalizer = <span class="kw">crate</span>::net::phoenix::spawn(
+            phoenix,
+            datacenters.clone(),
+            <span class="kw">crate</span>::net::phoenix::Phoenix::new(<span class="kw">crate</span>::codec::qcmp::QcmpMeasurement::new()<span class="question-mark">?</span>),
+            shutdown.shutdown_rx(),
+        )<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>finished = shutdown.push(<span class="string">"phoenix"</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>srx = shutdown.shutdown_rx();
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let _ </span>= srx.changed().<span class="kw">await</span>;
+
+            tokio::task::spawn_blocking(|| {
+                finalizer();
+            });
+
+            drop(finished.send(<span class="prelude-val">Ok</span>(())));
+        });
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Spawns an QCMP server if enabled, otherwise returns a future which never completes.
-    </span><span class="kw">fn </span>publish_qcmp(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        config: <span class="kw-2">&amp;</span>Config,
-        shutdown_rx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
-        <span class="kw">if </span><span class="self">self</span>.qcmp_enabled {
-            <span class="kw">let </span>qcmp_port = config
-                .dyn_cfg
-                .qcmp_port()
-                .context(<span class="string">"QCMP was enabled, but QCMP port was not inserted into typemap"</span>)<span class="question-mark">?</span>;
-
-            <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.qcmp_port, <span class="string">"starting qcmp service"</span>);
-            <span class="kw">let </span>qcmp = <span class="kw">crate</span>::net::raw_socket_with_reuse(<span class="self">self</span>.qcmp_port)<span class="question-mark">?</span>;
-
-            <span class="kw">crate</span>::codec::qcmp::spawn(qcmp, qcmp_port.subscribe(), shutdown_rx.clone())<span class="question-mark">?</span>;
+    </span><span class="kw">fn </span>publish_qcmp(<span class="kw-2">&amp;</span><span class="self">self</span>, config: <span class="kw-2">&amp;</span>Config, shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.qcmp_enabled {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="prelude-val">Ok</span>(std::future::pending())
+        <span class="kw">let </span>qcmp_port = config
+            .dyn_cfg
+            .qcmp_port()
+            .context(<span class="string">"QCMP was enabled, but QCMP port was not inserted into typemap"</span>)<span class="question-mark">?</span>;
+
+        <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.qcmp_port, <span class="string">"starting qcmp service"</span>);
+        <span class="kw">let </span>qcmp = <span class="kw">crate</span>::net::raw_socket_with_reuse(<span class="self">self</span>.qcmp_port)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>join = <span class="kw">crate</span>::codec::qcmp::spawn(qcmp, qcmp_port.subscribe(), shutdown.shutdown_rx())<span class="question-mark">?</span>;
+        <span class="kw">let </span>finished = shutdown.push(<span class="string">"qcmp"</span>);
+        tokio::spawn(<span class="kw">async move </span>{
+            drop(join.<span class="kw">await</span>);
+            drop(finished.send(<span class="prelude-val">Ok</span>(())));
+        });
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Spawns an xDS server if enabled, otherwise returns a future which never completes.
     </span><span class="kw">fn </span>publish_xds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
+        shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.xds_enabled &amp;&amp; !<span class="self">self</span>.grpc_enabled {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(either::Left(std::future::pending()));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
-
-        <span class="kw">use </span>futures::TryFutureExt <span class="kw">as _</span>;
 
         <span class="kw">let </span>listener = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.xds_port))<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(either::Right(
-            tokio::spawn(
-                <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
-                    config.clone(),
-                    <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
-                )
-                .management_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>,
-            )
-            .map_err(From::from)
-            .and_then(std::future::ready),
-        ))
+        <span class="kw">let </span>finished = shutdown.push(<span class="string">"xds"</span>);
+        <span class="kw">let </span>srx = shutdown.shutdown_rx();
+
+        <span class="kw">let </span>xds_server = <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
+            config.clone(),
+            <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
+            srx,
+        )
+        .management_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>res = xds_server.<span class="kw">await</span>;
+            drop(finished.send(res));
+        });
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Spawns an xDS server if enabled, otherwise returns a future which never completes.
     </span><span class="kw">fn </span>publish_mds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;&gt; {
+        shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.mds_enabled &amp;&amp; !<span class="self">self</span>.grpc_enabled {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(either::Left(std::future::pending()));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
-
-        <span class="kw">use </span>futures::TryFutureExt <span class="kw">as _</span>;
 
         <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.mds_port, <span class="string">"starting mds service"</span>);
         <span class="kw">let </span>listener = <span class="kw">crate</span>::net::TcpListener::bind(<span class="prelude-val">Some</span>(<span class="self">self</span>.mds_port))<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(either::Right(
-            tokio::spawn(
-                <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
-                    config.clone(),
-                    <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
-                )
-                .relay_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>,
-            )
-            .map_err(From::from)
-            .and_then(std::future::ready),
-        ))
+        <span class="kw">let </span>finished = shutdown.push(<span class="string">"mds"</span>);
+        <span class="kw">let </span>srx = shutdown.shutdown_rx();
+
+        <span class="kw">let </span>mds_server = <span class="kw">crate</span>::net::xds::server::ControlPlane::from_arc(
+            config.clone(),
+            <span class="kw">crate</span>::components::admin::IDLE_REQUEST_INTERVAL,
+            srx,
+        )
+        .relay_server(listener, <span class="self">self</span>.tls_identity()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+
+        tokio::spawn(<span class="kw">async move </span>{
+            <span class="kw">let </span>res = mds_server.<span class="kw">await</span>;
+            drop(finished.send(res));
+        });
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="attr">#[allow(clippy::type_complexity)]
     </span><span class="kw">pub fn </span>publish_udp(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;Config&gt;,
-    ) -&gt; eyre::Result&lt;(
-        <span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;,
-        <span class="prelude-ty">Option</span>&lt;Finalizer&gt;,
-        <span class="prelude-ty">Option</span>&lt;Arc&lt;<span class="kw">crate</span>::components::proxy::SessionPool&gt;&gt;,
-    )&gt; {
+        shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.udp_enabled &amp;&amp; !<span class="self">self</span>.qcmp_enabled {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>((either::Left(std::future::pending()), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
         <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.udp_port, <span class="string">"starting udp service"</span>);
@@ -1262,8 +1321,23 @@
             <span class="kw">match </span><span class="self">self</span>.spawn_xdp(config.clone(), <span class="self">self</span>.xdp.force_xdp) {
                 <span class="prelude-val">Ok</span>(xdp) =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(xdp) = xdp {
-                        <span class="self">self</span>.qcmp_enabled = <span class="bool-val">false</span>;
-                        <span class="kw">return </span><span class="prelude-val">Ok</span>((either::Left(std::future::pending()), <span class="prelude-val">Some</span>(xdp), <span class="prelude-val">None</span>));
+                        <span class="comment">// Disable this so that we don't create a separate user-space
+                        // QCMP service since we are handling QCMP messsages in XDP
+                        </span><span class="self">self</span>.qcmp_enabled = <span class="bool-val">false</span>;
+
+                        <span class="kw">let </span>finished = shutdown.push(<span class="string">"xdp"</span>);
+                        <span class="kw">let </span><span class="kw-2">mut </span>srx = shutdown.shutdown_rx();
+                        tokio::spawn(<span class="kw">async move </span>{
+                            drop(srx.changed().<span class="kw">await</span>);
+
+                            tokio::task::block_in_place(|| {
+                                xdp();
+                            });
+
+                            drop(finished.send(<span class="prelude-val">Ok</span>(())));
+                        });
+
+                        <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                     } <span class="kw">else if </span><span class="self">self</span>.xdp.force_xdp {
                         <span class="macro">eyre::bail!</span>(<span class="string">"XDP was forced on, but failed to initialize"</span>);
                     }
@@ -1282,11 +1356,10 @@
         }
 
         <span class="kw">if </span>!<span class="self">self</span>.udp_enabled {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>((either::Left(std::future::pending()), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
 
-        <span class="self">self</span>.spawn_user_space_router(config.clone())
-            .map(|(fut, func, sp)| (either::Right(fut), <span class="prelude-val">Some</span>(func), <span class="prelude-val">Some</span>(sp)))
+        <span class="self">self</span>.spawn_user_space_router(config.clone(), shutdown)
     }
 
     <span class="doccomment">/// Launches the user space implementation of the packet router using
@@ -1297,11 +1370,8 @@
     </span><span class="kw">pub fn </span>spawn_user_space_router(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: Arc&lt;Config&gt;,
-    ) -&gt; <span class="kw">crate</span>::Result&lt;(
-        <span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="kw">use</span>&lt;&gt;,
-        Finalizer,
-        Arc&lt;<span class="kw">crate</span>::components::proxy::SessionPool&gt;,
-    )&gt; {
+        shutdown: <span class="kw-2">&amp;mut </span>ShutdownHandler,
+    ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
         <span class="comment">// If we're on linux, we're using io-uring, but we're probably running in a container
         // and may not be allowed to call io-uring related syscalls due to seccomp
         // profiles, so do a quick check here to validate that we can call io_uring_setup
@@ -1357,15 +1427,51 @@
             .dyn_cfg
             .cached_filter_chain()
             .context(<span class="string">"a cached FilterChain should have been configured"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>sessions = SessionPool::new(session_sends, buffer_pool.clone(), cached_filters);
 
+        <span class="kw">let </span>sessions = SessionPool::new(session_sends, buffer_pool.clone(), cached_filters);
         <span class="kw">crate</span>::net::packet::spawn_receivers(config, socket, worker_sends, <span class="kw-2">&amp;</span>sessions, buffer_pool)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>((
-            std::future::pending(),
-            Box::from(<span class="kw">move </span>|_shutdown_rx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx| {}),
-            sessions,
-        ))
+        <span class="kw">let </span>finished = shutdown.push(<span class="string">"udp"</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>srx = shutdown.shutdown_rx();
+        <span class="kw">let </span>testing = <span class="self">self</span>.testing;
+        <span class="kw">let </span>termination_timeout = <span class="self">self</span>.termination_timeout;
+
+        tokio::spawn(<span class="kw">async move </span>{
+            drop(srx.changed().<span class="kw">await</span>);
+
+            <span class="kw">if </span>testing {
+                drop(finished.send(<span class="prelude-val">Ok</span>(())));
+                <span class="kw">return</span>;
+            }
+
+            <span class="macro">tracing::info!</span>(sessions = %sessions.sessions().len(), <span class="string">"waiting for active sessions to expire"</span>);
+            <span class="kw">let </span>start = std::time::Instant::now();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>sessions_check = tokio::time::interval(std::time::Duration::from_millis(<span class="number">100</span>));
+
+            <span class="kw">loop </span>{
+                sessions_check.tick().<span class="kw">await</span>;
+                <span class="kw">let </span>elapsed = start.elapsed();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(tt) = <span class="kw-2">&amp;</span>termination_timeout {
+                    <span class="kw">if </span>elapsed &gt; <span class="kw-2">**</span>tt {
+                        <span class="macro">tracing::info!</span>(
+                            <span class="question-mark">?</span>elapsed,
+                            <span class="string">"termination timeout was reached before all sessions expired"
+                        </span>);
+                        <span class="kw">break</span>;
+                    }
+                }
+
+                <span class="kw">if </span>sessions.sessions().is_empty() {
+                    <span class="macro">tracing::info!</span>(shutdown_duration = <span class="question-mark">?</span>elapsed, <span class="string">"all sessions expired"</span>);
+                    <span class="kw">break</span>;
+                }
+            }
+
+            drop(finished.send(<span class="prelude-val">Ok</span>(())));
+        });
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="attr">#[cfg(target_os = <span class="string">"linux"</span>)]
@@ -1409,8 +1515,8 @@
         .context(<span class="string">"failed to setup XDP"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>io_loop = xdp::spawn(workers, config).context(<span class="string">"failed to spawn XDP I/O loop"</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Box::new(<span class="kw">move </span>|srx: <span class="kw-2">&amp;</span><span class="kw">crate</span>::signal::ShutdownRx| {
-            io_loop.shutdown(<span class="kw-2">*</span>srx.borrow() == <span class="kw">crate</span>::signal::ShutdownKind::Normal);
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Box::new(<span class="kw">move </span>|| {
+            io_loop.shutdown(<span class="bool-val">true</span>);
         })))
     }
 }

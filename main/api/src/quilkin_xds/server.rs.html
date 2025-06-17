@@ -913,7 +913,39 @@
 <a href="#912" id="912">912</a>
 <a href="#913" id="913">913</a>
 <a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -936,6 +968,7 @@
 <span class="kw">use </span>tracing_futures::Instrument;
 
 <span class="kw">use crate</span>::{
+    ShutdownSignal,
     discovery::{
         DeltaDiscoveryRequest, DeltaDiscoveryResponse, DiscoveryRequest, DiscoveryResponse,
         aggregated_discovery_service_server::{
@@ -1020,6 +1053,7 @@
     <span class="kw">pub </span>idle_request_interval: Duration,
     tx: tokio::sync::broadcast::Sender&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;,
     <span class="kw">pub </span>is_relay: bool,
+    <span class="kw">pub </span>shutdown: ShutdownSignal,
 }
 
 <span class="kw">impl</span>&lt;C&gt; Clone <span class="kw">for </span>ControlPlane&lt;C&gt; {
@@ -1029,12 +1063,17 @@
             idle_request_interval: <span class="self">self</span>.idle_request_interval,
             tx: <span class="self">self</span>.tx.clone(),
             is_relay: <span class="self">self</span>.is_relay,
+            shutdown: <span class="self">self</span>.shutdown.clone(),
         }
     }
 }
 
 <span class="kw">impl</span>&lt;C: <span class="kw">crate</span>::config::Configuration&gt; ControlPlane&lt;C&gt; {
-    <span class="kw">pub fn </span>from_arc(config: Arc&lt;C&gt;, idle_request_interval: Duration) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>from_arc(
+        config: Arc&lt;C&gt;,
+        idle_request_interval: Duration,
+        shutdown: ShutdownSignal,
+    ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>(tx, <span class="kw">_</span>) = tokio::sync::broadcast::channel(<span class="number">10</span>);
 
         <span class="self">Self </span>{
@@ -1042,6 +1081,7 @@
             idle_request_interval,
             tx,
             is_relay: <span class="bool-val">false</span>,
+            shutdown,
         }
     }
 
@@ -1057,11 +1097,13 @@
         tls: <span class="prelude-ty">Option</span>&lt;TlsIdentity&gt;,
     ) -&gt; eyre::Result&lt;<span class="kw">impl </span>std::future::Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt;&gt; {
         <span class="self">self</span>.is_relay = <span class="bool-val">false</span>;
+        <span class="kw">let </span>srx = <span class="self">self</span>.shutdown.clone();
         tokio::spawn({
             <span class="kw">let </span>this = <span class="self">self</span>.clone();
-            <span class="self">self</span>.config.on_changed(this)
+            <span class="self">self</span>.config.on_changed(this, srx)
         });
 
+        <span class="kw">let </span><span class="kw-2">mut </span>shutdown = <span class="self">self</span>.shutdown.clone();
         <span class="kw">let </span>server = AggregatedDiscoveryServiceServer::new(<span class="self">self</span>)
             .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size());
         <span class="kw">let </span>builder = <span class="self">Self</span>::server_builder();
@@ -1075,7 +1117,9 @@
         <span class="kw">let </span>server = builder.add_service(server);
         <span class="macro">tracing::info!</span>(<span class="string">"serving management server on port `{}`"</span>, listener.port());
         <span class="prelude-val">Ok</span>(server
-            .serve_with_incoming(listener.into_stream()<span class="question-mark">?</span>)
+            .serve_with_incoming_shutdown(listener.into_stream()<span class="question-mark">?</span>, <span class="kw">async move </span>{
+                drop(shutdown.changed().<span class="kw">await</span>);
+            })
             .map_err(From::from))
     }
 
@@ -1085,11 +1129,13 @@
         tls: <span class="prelude-ty">Option</span>&lt;TlsIdentity&gt;,
     ) -&gt; eyre::Result&lt;<span class="kw">impl </span>std::future::Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt;&gt; {
         <span class="self">self</span>.is_relay = <span class="bool-val">true</span>;
+        <span class="kw">let </span>srx = <span class="self">self</span>.shutdown.clone();
         tokio::spawn({
             <span class="kw">let </span>this = <span class="self">self</span>.clone();
-            <span class="self">self</span>.config.on_changed(this)
+            <span class="self">self</span>.config.on_changed(this, srx)
         });
 
+        <span class="kw">let </span><span class="kw-2">mut </span>shutdown = <span class="self">self</span>.shutdown.clone();
         <span class="kw">let </span>server = AggregatedControlPlaneDiscoveryServiceServer::new(<span class="self">self</span>)
             .max_encoding_message_size(<span class="kw">crate</span>::config::max_grpc_message_size());
         <span class="kw">let </span>builder = <span class="self">Self</span>::server_builder();
@@ -1103,7 +1149,9 @@
         <span class="kw">let </span>server = builder.add_service(server);
         <span class="macro">tracing::info!</span>(<span class="string">"serving relay server on port `{}`"</span>, listener.port());
         <span class="prelude-val">Ok</span>(server
-            .serve_with_incoming(listener.into_stream()<span class="question-mark">?</span>)
+            .serve_with_incoming_shutdown(listener.into_stream()<span class="question-mark">?</span>, <span class="kw">async move </span>{
+                drop(shutdown.changed().<span class="kw">await</span>);
+            })
             .map_err(From::from))
     }
 
@@ -1146,15 +1194,14 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(tonic::Status::invalid_argument(<span class="string">"Node identifier required"</span>));
         };
 
-        <span class="kw">let </span>this = <span class="self">Self</span>::clone(<span class="self">self</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>rx = this.tx.subscribe();
+        <span class="kw">let </span><span class="kw-2">mut </span>rx = <span class="self">self</span>.tx.subscribe();
+        <span class="kw">let </span>id = <span class="self">self</span>.config.identifier();
 
-        <span class="kw">let </span>id = this.config.identifier();
         <span class="macro">tracing::debug!</span>(
             id,
             client = node_id,
-            count = this.tx.receiver_count(),
-            is_relay = this.is_relay,
+            count = <span class="self">self</span>.tx.receiver_count(),
+            is_relay = <span class="self">self</span>.is_relay,
             <span class="string">"subscribed to config updates"
         </span>);
 
@@ -1166,7 +1213,9 @@
         <span class="kw">let </span><span class="kw-2">mut </span>client_tracker = ClientTracker::track_client(node_id.clone());
 
         <span class="kw">let </span>client = node_id.clone();
-        <span class="kw">let </span>cfg = this.config.clone();
+        <span class="kw">let </span>cfg = <span class="self">self</span>.config.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>shutdown = <span class="self">self</span>.shutdown.clone();
+
         <span class="kw">let </span>responder = <span class="kw">move </span>|req: <span class="prelude-ty">Option</span>&lt;DeltaDiscoveryRequest&gt;,
                               type_url: <span class="kw-2">&amp;</span>str,
                               client_tracker: <span class="kw-2">&amp;mut </span>ClientTracker|
@@ -1346,6 +1395,9 @@
                         <span class="kw">let </span><span class="prelude-val">Some</span>(response) = responder(<span class="prelude-val">Some</span>(client_request), <span class="kw-2">&amp;</span>type_url, <span class="kw-2">&amp;mut </span>client_tracker).unwrap() <span class="kw">else </span>{ <span class="kw">continue</span>; };
                         <span class="kw">yield </span>response;
                     }
+                    <span class="kw">_ </span>= shutdown.changed() =&gt; {
+                        <span class="kw">break</span>;
+                    }
                 }
             }
 
@@ -1441,6 +1493,7 @@
 
         <span class="macro">tracing::info!</span>(identifier, <span class="string">"new control plane delta discovery stream"</span>);
         <span class="kw">let </span>config = <span class="self">self</span>.config.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>shutdown = <span class="self">self</span>.shutdown.clone();
         <span class="kw">let </span>idle_request_interval = <span class="self">self</span>.idle_request_interval;
 
         <span class="kw">let </span>(ds, <span class="kw-2">mut </span>request_stream) = <span class="kw">super</span>::client::DeltaClientStream::new();
@@ -1490,32 +1543,39 @@
                     <span class="kw">let </span>next_response =
                         tokio::time::timeout(idle_request_interval, response_stream.next());
 
-                    <span class="kw">match </span>next_response.<span class="kw">await </span>{
-                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(ack))) =&gt; {
-                            <span class="macro">tracing::trace!</span>(<span class="string">"sending ack request"</span>);
-                            ds.send_response(ack).<span class="kw">await</span>.map_err(|_err| {
-                                tonic::Status::internal(<span class="string">"this should not be reachable"</span>)
-                            })<span class="question-mark">?</span>;
-                        }
-                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
-                            <span class="kw">if </span><span class="kw">crate</span>::is_broken_pipe(<span class="kw-2">&amp;</span>error) {
-                                <span class="kw">break </span><span class="prelude-val">Ok</span>(());
-                            } <span class="kw">else </span>{
-                                <span class="kw">break </span><span class="prelude-val">Err</span>(<span class="macro">eyre::eyre!</span>(error));
+                    <span class="macro">tokio::select!</span> {
+                        nr = next_response =&gt; {
+                            <span class="kw">match </span>nr {
+                                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(ack))) =&gt; {
+                                    <span class="macro">tracing::trace!</span>(<span class="string">"sending ack request"</span>);
+                                    ds.send_response(ack).<span class="kw">await</span>.map_err(|_err| {
+                                        tonic::Status::internal(<span class="string">"this should not be reachable"</span>)
+                                    })<span class="question-mark">?</span>;
+                                }
+                                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
+                                    <span class="kw">if </span><span class="kw">crate</span>::is_broken_pipe(<span class="kw-2">&amp;</span>error) {
+                                        <span class="kw">break </span><span class="prelude-val">Ok</span>(());
+                                    } <span class="kw">else </span>{
+                                        <span class="kw">break </span><span class="prelude-val">Err</span>(<span class="macro">eyre::eyre!</span>(error));
+                                    }
+                                }
+                                <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
+                                    <span class="kw">break </span><span class="prelude-val">Ok</span>(());
+                                }
+                                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+                                    <span class="macro">tracing::trace!</span>(<span class="string">"exceeded idle interval, sending request"</span>);
+                                    ds.refresh(
+                                        <span class="kw-2">&amp;</span>identifier,
+                                        config.interested_resources(<span class="kw-2">&amp;</span>server_version).collect(),
+                                        <span class="kw-2">&amp;</span>local,
+                                    )
+                                    .<span class="kw">await
+                                    </span>.map_err(|error| tonic::Status::internal(error.to_string()))<span class="question-mark">?</span>;
+                                }
                             }
                         }
-                        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
+                        <span class="kw">_ </span>= shutdown.changed() =&gt; {
                             <span class="kw">break </span><span class="prelude-val">Ok</span>(());
-                        }
-                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">tracing::trace!</span>(<span class="string">"exceeded idle interval, sending request"</span>);
-                            ds.refresh(
-                                <span class="kw-2">&amp;</span>identifier,
-                                config.interested_resources(<span class="kw-2">&amp;</span>server_version).collect(),
-                                <span class="kw-2">&amp;</span>local,
-                            )
-                            .<span class="kw">await
-                            </span>.map_err(|error| tonic::Status::internal(error.to_string()))<span class="question-mark">?</span>;
                         }
                     }
                 };
@@ -1559,15 +1619,16 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(tonic::Status::invalid_argument(<span class="string">"Node identifier required"</span>));
         };
 
-        <span class="kw">let </span>this = <span class="self">Self</span>::clone(<span class="self">self</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>rx = this.tx.subscribe();
+        <span class="kw">let </span>is_relay = <span class="self">self</span>.is_relay;
+        <span class="kw">let </span><span class="kw-2">mut </span>rx = <span class="self">self</span>.tx.subscribe();
+        <span class="kw">let </span>id = <span class="self">self</span>.config.identifier();
+        <span class="kw">let </span><span class="kw-2">mut </span>shutdown = <span class="self">self</span>.shutdown.clone();
 
-        <span class="kw">let </span>id = this.config.identifier();
         <span class="macro">tracing::debug!</span>(
             id,
             client = node_id,
-            count = this.tx.receiver_count(),
-            is_relay = this.is_relay,
+            count = <span class="self">self</span>.tx.receiver_count(),
+            is_relay,
             <span class="string">"subscribed to config updates"
         </span>);
 
@@ -1579,7 +1640,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>client_tracker = ClientTracker::track_client(node_id.clone());
 
         <span class="kw">let </span>client = node_id.clone();
-        <span class="kw">let </span>cfg = this.config.clone();
+        <span class="kw">let </span>cfg = <span class="self">self</span>.config.clone();
         <span class="kw">let </span>responder = <span class="kw">move </span>|req: <span class="prelude-ty">Option</span>&lt;DeltaDiscoveryRequest&gt;,
                               type_url: <span class="kw-2">&amp;</span>str,
                               client_tracker: <span class="kw-2">&amp;mut </span>ClientTracker|
@@ -1758,6 +1819,9 @@
 
                         <span class="kw">let </span><span class="prelude-val">Some</span>(response) = responder(<span class="prelude-val">Some</span>(client_request), <span class="kw-2">&amp;</span>type_url, <span class="kw-2">&amp;mut </span>client_tracker).unwrap() <span class="kw">else </span>{ <span class="kw">continue</span>; };
                         <span class="kw">yield </span>response;
+                    }
+                    <span class="kw">_ </span>= shutdown.changed() =&gt; {
+                        <span class="kw">break</span>;
                     }
                 }
             }

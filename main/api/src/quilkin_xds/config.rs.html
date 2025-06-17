@@ -328,7 +328,8 @@
 <a href="#327" id="327">327</a>
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::discovery::{DeltaDiscoveryRequest, DeltaDiscoveryResponse, Resource};
 <span class="kw">use </span>std::{
     collections::{BTreeSet, HashMap},
     sync::Arc,
@@ -550,6 +551,7 @@
     <span class="kw">fn </span>on_changed(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         subscribed: <span class="kw">crate</span>::server::ControlPlane&lt;<span class="self">Self</span>&gt;,
+        shutdown: tokio::sync::watch::Receiver&lt;()&gt;,
     ) -&gt; <span class="kw">impl </span>std::future::Future&lt;Output = ()&gt; + Send + <span class="lifetime">'static</span>;
 
     <span class="kw">fn </span>interested_resources(

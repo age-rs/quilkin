@@ -762,9 +762,7 @@
 <a href="#761" id="761">761</a>
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#764" id="764">764</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -967,16 +965,16 @@
 <span class="kw">pub fn </span>spawn(
     socket: socket2::Socket,
     <span class="kw-2">mut </span>port_rx: tokio::sync::broadcast::Receiver&lt;u16&gt;,
-    <span class="kw-2">mut </span>shutdown_rx: <span class="kw">crate</span>::signal::ShutdownRx,
-) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+    <span class="kw-2">mut </span>shutdown_rx: tokio::sync::watch::Receiver&lt;()&gt;,
+) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;()&gt;&gt; {
     <span class="kw">use </span>tracing::{Instrument <span class="kw">as _</span>, instrument::WithSubscriber <span class="kw">as _</span>};
 
     <span class="kw">let </span><span class="kw-2">mut </span>port = <span class="kw">crate</span>::net::socket_port(<span class="kw-2">&amp;</span>socket);
+    <span class="kw">let </span><span class="kw-2">mut </span>socket = DualStackEpollSocket::new(port)<span class="question-mark">?</span>;
 
-    tokio::task::spawn(
+    <span class="prelude-val">Ok</span>(tokio::task::spawn(
         <span class="kw">async move </span>{
             <span class="kw">let </span><span class="kw-2">mut </span>input_buf = [<span class="number">0u8</span>; MAX_QCMP_PACKET_LEN];
-            <span class="kw">let </span><span class="kw-2">mut </span>socket = DualStackEpollSocket::new(port).unwrap();
             <span class="kw">let </span><span class="kw-2">mut </span>output_buf = QcmpPacket::default();
             metrics::qcmp::active(<span class="bool-val">true</span>);
 
@@ -1074,9 +1072,7 @@
         }
         .instrument(<span class="macro">tracing::debug_span!</span>(<span class="string">"qcmp"</span>))
         .with_current_subscriber(),
-    );
-
-    <span class="prelude-val">Ok</span>(())
+    ))
 }
 
 <span class="kw">fn </span>track_error&lt;T, E: std::fmt::Display&gt;(
@@ -1500,7 +1496,7 @@
         <span class="kw">let </span>socket = raw_socket_with_reuse(<span class="number">0</span>).unwrap();
         <span class="kw">let </span>addr = socket.local_addr().unwrap().as_socket().unwrap();
 
-        <span class="kw">let </span>(_tx, rx) = <span class="kw">crate</span>::signal::channel(Default::default());
+        <span class="kw">let </span>(_tx, rx) = <span class="kw">crate</span>::signal::channel();
         <span class="kw">let </span>pc = <span class="kw">super</span>::port_channel();
         spawn(socket, pc.subscribe(), rx).unwrap();
 

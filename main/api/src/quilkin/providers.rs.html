@@ -685,7 +685,14 @@
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
 <a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -1182,6 +1189,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: Arc&lt;config::Config&gt;,
         health_check: Arc&lt;AtomicBool&gt;,
+        shutdown: tokio::sync::watch::Receiver&lt;()&gt;,
     ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="lifetime">'static </span>{
         <span class="kw">let </span>config = config.clone();
         <span class="kw">let </span>endpoints = <span class="self">self</span>.relay.clone();
@@ -1189,10 +1197,11 @@
             <span class="kw">let </span>config = config.clone();
             <span class="kw">let </span>endpoints = endpoints.clone();
             <span class="kw">let </span>health_check = health_check.clone();
+            <span class="kw">let </span>shutdown = shutdown.clone();
             <span class="kw">async move </span>{
                 <span class="kw">let </span>stream = <span class="kw">crate</span>::net::xds::client::MdsClient::connect(config.id(), endpoints)
                     .<span class="kw">await</span><span class="question-mark">?
-                    </span>.delta_stream(config.clone(), health_check.clone())
+                    </span>.delta_stream(config.clone(), health_check.clone(), shutdown)
                     .<span class="kw">await
                     </span>.map_err(|_err| <span class="macro">eyre::eyre!</span>(<span class="string">"failed to acquire delta stream"</span>))<span class="question-mark">?</span>;
 
@@ -1276,6 +1285,7 @@
         config: <span class="kw-2">&amp;</span>Arc&lt;config::Config&gt;,
         health_check: Arc&lt;AtomicBool&gt;,
         locality: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::net::endpoint::Locality&gt;,
+        shutdown: tokio::sync::watch::Receiver&lt;()&gt;,
     ) -&gt; tokio::task::JoinSet&lt;<span class="kw">crate</span>::Result&lt;()&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>providers = tokio::task::JoinSet::new();
 
@@ -1299,7 +1309,11 @@
         }
 
         <span class="kw">if </span><span class="self">self</span>.grpc_push_enabled() {
-            providers.spawn(<span class="self">self</span>.spawn_mds_provider(config.clone(), health_check.clone()));
+            providers.spawn(<span class="self">self</span>.spawn_mds_provider(
+                config.clone(),
+                health_check.clone(),
+                shutdown,
+            ));
         }
 
         <span class="kw">if </span><span class="self">self</span>.k8s_enabled() || <span class="self">self</span>.agones_enabled() {

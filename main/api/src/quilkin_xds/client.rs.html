@@ -667,7 +667,16 @@
 <a href="#666" id="666">666</a>
 <a href="#667" id="667">667</a>
 <a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -893,6 +902,7 @@
         <span class="self">self</span>,
         config: Arc&lt;C&gt;,
         is_healthy: Arc&lt;AtomicBool&gt;,
+        <span class="kw-2">mut </span>shutdown: <span class="kw">crate</span>::ShutdownSignal,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;tokio::task::JoinHandle&lt;<span class="prelude-ty">Result</span>&lt;()&gt;&gt;, <span class="self">Self</span>&gt; {
         <span class="kw">const </span>LEADERSHIP_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(<span class="number">1</span>);
         <span class="kw">let </span>identifier = String::from(<span class="kw-2">&amp;*</span><span class="self">self</span>.identifier);
@@ -929,55 +939,63 @@
                         <span class="kw">let </span>control_plane = <span class="kw">super</span>::server::ControlPlane::from_arc(
                             config.clone(),
                             IDLE_REQUEST_INTERVAL,
+                            shutdown.clone(),
                         );
 
                         <span class="kw">let </span>change_watcher = tokio::spawn({
                             <span class="kw">let </span><span class="kw-2">mut </span>this = control_plane.clone();
                             this.is_relay = <span class="bool-val">true</span>; <span class="comment">// This is a lie, but means we don't unneccessarily watch for filter changes on the agent, which doesn't perform them
-                            </span>control_plane.config.on_changed(this)
+                            </span>control_plane.config.on_changed(this, shutdown.clone())
                         });
 
-                        <span class="kw">match </span>control_plane.delta_aggregated_resources(stream).<span class="kw">await </span>{
-                            <span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>stream) =&gt; {
-                                is_healthy.store(<span class="bool-val">true</span>, Ordering::SeqCst);
+                        <span class="macro">tokio::select!</span> {
+                            res = control_plane.delta_aggregated_resources(stream) =&gt; {
+                                <span class="kw">match </span>res {
+                                    <span class="prelude-val">Ok</span>(<span class="kw-2">mut </span>stream) =&gt; {
+                                        is_healthy.store(<span class="bool-val">true</span>, Ordering::SeqCst);
 
-                                <span class="kw">loop </span>{
-                                    <span class="kw">if </span>config.is_leader() == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
-                                        <span class="macro">tracing::warn!</span>(<span class="string">"lost leader lock mid-stream, disconnecting"</span>);
-                                        <span class="kw">break</span>;
-                                    }
-
-                                    <span class="kw">const </span>TIMEOUT_INTERVAL: Duration = Duration::from_secs(<span class="number">30</span>);
-                                    <span class="kw">match </span>tokio::time::timeout(TIMEOUT_INTERVAL, stream.next()).<span class="kw">await </span>{
-                                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(response))) =&gt; <span class="kw">match </span>ds.send_response(response).<span class="kw">await </span>{
-                                            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
-                                                <span class="macro">tracing::trace!</span>(<span class="string">"ACK successfully sent"</span>);
-                                            }
-                                            <span class="prelude-val">Err</span>(error) =&gt; {
-                                                <span class="macro">tracing::warn!</span>(%error, <span class="string">"error sending ACK"</span>);
+                                        <span class="kw">loop </span>{
+                                            <span class="kw">if </span>config.is_leader() == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                                                <span class="macro">tracing::warn!</span>(<span class="string">"lost leader lock mid-stream, disconnecting"</span>);
                                                 <span class="kw">break</span>;
                                             }
+
+                                            <span class="kw">const </span>TIMEOUT_INTERVAL: Duration = Duration::from_secs(<span class="number">30</span>);
+                                            <span class="kw">match </span>tokio::time::timeout(TIMEOUT_INTERVAL, stream.next()).<span class="kw">await </span>{
+                                                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(response))) =&gt; <span class="kw">match </span>ds.send_response(response).<span class="kw">await </span>{
+                                                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
+                                                        <span class="macro">tracing::trace!</span>(<span class="string">"ACK successfully sent"</span>);
+                                                    }
+                                                    <span class="prelude-val">Err</span>(error) =&gt; {
+                                                        <span class="macro">tracing::warn!</span>(%error, <span class="string">"error sending ACK"</span>);
+                                                        <span class="kw">break</span>;
+                                                    }
+                                                }
+                                                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
+                                                    <span class="macro">tracing::warn!</span>(%error, <span class="string">"error receiving delta response"</span>);
+                                                    <span class="kw">break</span>;
+                                                }
+                                                <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
+                                                    <span class="macro">tracing::debug!</span>(<span class="string">"delta stream terminated by client"</span>);
+                                                    <span class="kw">break</span>;
+                                                }
+                                                <span class="prelude-val">Err</span>(error) =&gt; {
+                                                    <span class="macro">tracing::trace!</span>(duration=TIMEOUT_INTERVAL.as_secs_f64(), %error, <span class="string">"no requests received"</span>);
+                                                    <span class="kw">continue</span>;
+                                                }
+                                            }
                                         }
-                                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
-                                            <span class="macro">tracing::warn!</span>(%error, <span class="string">"error receiving delta response"</span>);
-                                            <span class="kw">break</span>;
-                                        }
-                                        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                                            <span class="macro">tracing::debug!</span>(<span class="string">"delta stream terminated by client"</span>);
-                                            <span class="kw">break</span>;
-                                        }
-                                        <span class="prelude-val">Err</span>(error) =&gt; {
-                                            <span class="macro">tracing::trace!</span>(duration=TIMEOUT_INTERVAL.as_secs_f64(), %error, <span class="string">"no requests received"</span>);
-                                            <span class="kw">continue</span>;
-                                        }
+
+                                        change_watcher.abort();
+                                        <span class="kw">let </span>_unused = change_watcher.<span class="kw">await</span>;
+                                    },
+                                    <span class="prelude-val">Err</span>(error) =&gt; {
+                                        <span class="macro">tracing::warn!</span>(%error, error_debug=<span class="question-mark">?</span>error, <span class="string">"failed to acquire internal delta stream from config"</span>);
                                     }
                                 }
-
-                                change_watcher.abort();
-                                <span class="kw">let </span>_unused = change_watcher.<span class="kw">await</span>;
-                            },
-                            <span class="prelude-val">Err</span>(error) =&gt; {
-                                <span class="macro">tracing::warn!</span>(%error, error_debug=<span class="question-mark">?</span>error, <span class="string">"failed to acquire internal delta stream from config"</span>);
+                            }
+                            <span class="kw">_ </span>= shutdown.changed() =&gt; {
+                                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                             }
                         }
                     }
