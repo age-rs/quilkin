@@ -692,7 +692,14 @@
 <a href="#691" id="691">691</a>
 <a href="#692" id="692">692</a>
 <a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -719,7 +726,7 @@
     },
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::config;
+<span class="kw">use crate</span>::{config, metrics::provider_task_failures_total};
 <span class="kw">use </span>eyre::Context;
 <span class="kw">use </span>futures::TryStreamExt;
 
@@ -1145,7 +1152,7 @@
             }
         };
 
-        <span class="self">Self</span>::task(health_check.clone(), task)
+        <span class="self">Self</span>::task(<span class="string">"k8s_provider"</span>.into(), health_check.clone(), task)
     }
 
     <span class="kw">async fn </span>result_stream&lt;T&gt;(
@@ -1193,7 +1200,7 @@
     ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="lifetime">'static </span>{
         <span class="kw">let </span>config = config.clone();
         <span class="kw">let </span>endpoints = <span class="self">self</span>.relay.clone();
-        <span class="self">Self</span>::task(health_check.clone(), <span class="kw">move </span>|| {
+        <span class="self">Self</span>::task(<span class="string">"mds_provider"</span>.into(), health_check.clone(), <span class="kw">move </span>|| {
             <span class="kw">let </span>config = config.clone();
             <span class="kw">let </span>endpoints = endpoints.clone();
             <span class="kw">let </span>health_check = health_check.clone();
@@ -1221,7 +1228,7 @@
         <span class="kw">let </span>endpoints = <span class="self">self</span>.xds_endpoints.clone();
         <span class="kw">let </span>tx = <span class="prelude-ty">Option</span>::&lt;tokio::sync::mpsc::UnboundedSender&lt;String&gt;&gt;::None;
 
-        <span class="self">Self</span>::task(health_check.clone(), <span class="kw">move </span>|| {
+        <span class="self">Self</span>::task(<span class="string">"xds_provider"</span>.into(), health_check.clone(), <span class="kw">move </span>|| {
             <span class="kw">let </span>config = config.clone();
             <span class="kw">let </span>endpoints = endpoints.clone();
             <span class="kw">let </span>health_check = health_check.clone();
@@ -1331,19 +1338,23 @@
         <span class="kw">if </span><span class="self">self</span>.fs_enabled() {
             <span class="kw">let </span>config = config.clone();
 
-            providers.spawn(<span class="self">Self</span>::task(health_check.clone(), {
-                <span class="kw">let </span>path = <span class="self">self</span>.fs_path.clone();
-                <span class="kw">let </span>health_check = health_check.clone();
+            providers.spawn(<span class="self">Self</span>::task(
+                <span class="string">"fs_watch_provider"</span>.into(),
+                health_check.clone(),
+                {
+                    <span class="kw">let </span>path = <span class="self">self</span>.fs_path.clone();
+                    <span class="kw">let </span>health_check = health_check.clone();
 
-                <span class="kw">move </span>|| {
-                    fs::watch(
-                        config.clone(),
-                        health_check.clone(),
-                        path.clone(),
-                        locality.clone(),
-                    )
-                }
-            }));
+                    <span class="kw">move </span>|| {
+                        fs::watch(
+                            config.clone(),
+                            health_check.clone(),
+                            path.clone(),
+                            locality.clone(),
+                        )
+                    }
+                },
+            ));
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(fc) = <span class="self">self
@@ -1366,6 +1377,7 @@
 
     <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
     </span><span class="kw">pub async fn </span>task&lt;F&gt;(
+        name: String,
         health_check: Arc&lt;AtomicBool&gt;,
         task: <span class="kw">impl </span>FnMut() -&gt; F,
     ) -&gt; <span class="kw">crate</span>::Result&lt;()&gt;
@@ -1378,9 +1390,11 @@
             .max_delay(MAX_DELAY)
             .on_retry(|attempt, <span class="kw">_</span>, error: <span class="kw-2">&amp;</span>eyre::Error| {
                 health_check.store(<span class="bool-val">false</span>, Ordering::SeqCst);
+                <span class="kw">let </span>name = name.clone();
                 <span class="kw">let </span>error = error.to_string();
                 <span class="kw">async move </span>{
-                    <span class="macro">tracing::warn!</span>(%attempt, %error, <span class="string">"provider task error, retrying"</span>);
+                    provider_task_failures_total(<span class="kw-2">&amp;</span>name).inc();
+                    <span class="macro">tracing::warn!</span>(%attempt, %error, task=%name, <span class="string">"provider task error, retrying"</span>);
                 }
             })
             .<span class="kw">await

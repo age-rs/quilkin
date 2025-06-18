@@ -83,8 +83,7 @@
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#85" id="85">85</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,13 +109,13 @@
 <span class="kw">const </span>COUNTRY_CODE_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"country_code"</span>;
 <span class="kw">const </span>PREFIX_ENTITY_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"prefix_entity"</span>;
 <span class="kw">const </span>PREFIX_NAME_LABEL: <span class="kw-2">&amp;</span>str = <span class="string">"prefix_name"</span>;
-<span class="kw">use </span><span class="kw">crate</span>::metrics::{ASN_LABEL, PREFIX_LABEL};
+<span class="kw">use </span><span class="kw">crate</span>::metrics::ASN_LABEL;
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>active_sessions(asn: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="kw">crate</span>::net::maxmind_db::IpNetEntry&gt;) -&gt; IntGauge {
     <span class="kw">static </span>ACTIVE_SESSIONS: Lazy&lt;IntGaugeVec&gt; = Lazy::new(|| {
         <span class="macro">prometheus::register_int_gauge_vec_with_registry!</span> {
             Opts::new(<span class="string">"active"</span>, <span class="string">"number of sessions currently active"</span>).subsystem(SUBSYSTEM),
-            <span class="kw-2">&amp;</span>[ASN_LABEL, AS_NAME_LABEL, COUNTRY_CODE_LABEL, PREFIX_LABEL, PREFIX_ENTITY_LABEL, PREFIX_NAME_LABEL],
+            <span class="kw-2">&amp;</span>[ASN_LABEL, AS_NAME_LABEL, COUNTRY_CODE_LABEL, PREFIX_ENTITY_LABEL, PREFIX_NAME_LABEL],
             <span class="kw">crate</span>::metrics::registry(),
         }
         .unwrap()
@@ -131,12 +130,11 @@
             </span><span class="kw">unsafe </span>{ std::str::from_utf8_unchecked(<span class="kw-2">&amp;</span>asn[..len <span class="kw">as _</span>]) },
             <span class="kw-2">&amp;</span>asnfo.as_name,
             <span class="kw-2">&amp;</span>asnfo.as_cc,
-            <span class="kw-2">&amp;</span>asnfo.prefix,
             <span class="kw-2">&amp;</span>asnfo.prefix_entity,
             <span class="kw-2">&amp;</span>asnfo.prefix_name,
         ])
     } <span class="kw">else </span>{
-        ACTIVE_SESSIONS.with_label_values(<span class="kw-2">&amp;</span>[<span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>])
+        ACTIVE_SESSIONS.with_label_values(<span class="kw-2">&amp;</span>[<span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>, <span class="string">""</span>])
     }
 }
 
