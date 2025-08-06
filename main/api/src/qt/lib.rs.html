@@ -834,7 +834,11 @@
 <a href="#833" id="833">833</a>
 <a href="#834" id="834">834</a>
 <a href="#835" id="835">835</a>
-<a href="#836" id="836">836</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::unimplemented)]
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::unimplemented)]
 
 </span><span class="kw">use </span>quilkin::{
     Config,
@@ -1642,14 +1646,18 @@
         <span class="kw">let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, pail)) = <span class="self">self</span>.pails.iter_mut().find(|(name, <span class="kw">_</span>)| <span class="kw-2">**</span>name == which) <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"failed to find '{which}'"</span>);
         };
+        <span class="macro">tracing::info!</span>(<span class="string">"stopping {which}"</span>);
         pail.stop().<span class="kw">await</span>;
+        <span class="macro">tracing::info!</span>(<span class="string">"stopped {which}"</span>);
     }
 
     <span class="kw">pub async fn </span>start(<span class="kw-2">&amp;mut </span><span class="self">self</span>, which: <span class="kw-2">&amp;</span>str) {
         <span class="kw">let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, pail)) = <span class="self">self</span>.pails.iter_mut().find(|(name, <span class="kw">_</span>)| <span class="kw-2">**</span>name == which) <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"failed to find '{which}'"</span>);
         };
+        <span class="macro">tracing::info!</span>(<span class="string">"starting {which}"</span>);
         pail.start().<span class="kw">await</span>;
+        <span class="macro">tracing::info!</span>(<span class="string">"started {which}"</span>);
     }
 }
 
