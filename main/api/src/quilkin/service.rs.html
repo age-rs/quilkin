@@ -918,7 +918,7 @@
     )]
     </span>tls_key_path: <span class="prelude-ty">Option</span>&lt;std::path::PathBuf&gt;,
     <span class="attr">#[clap(long = <span class="string">"termination-timeout"</span>)]
-    </span>termination_timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Timeout&gt;,
+    </span>termination_timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Duration&gt;,
     <span class="attr">#[clap(skip)]
     </span>testing: bool,
 }
@@ -1107,7 +1107,7 @@
         <span class="prelude-val">Ok</span>(Arc::new(config))
     }
 
-    <span class="kw">pub fn </span>termination_timeout(<span class="kw-2">mut </span><span class="self">self</span>, timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Timeout&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>termination_timeout(<span class="kw-2">mut </span><span class="self">self</span>, timeout: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::cli::Duration&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.termination_timeout = timeout;
         <span class="self">self
     </span>}
