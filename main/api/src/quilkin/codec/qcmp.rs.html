@@ -762,7 +762,57 @@
 <a href="#761" id="761">761</a>
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -780,7 +830,9 @@
 
 </span><span class="doccomment">//! Logic for parsing and generating Quilkin Control Message Protocol (QCMP) messages.
 
-</span><span class="kw">use crate</span>::{
+</span><span class="kw">use </span>eyre::Context;
+
+<span class="kw">use crate</span>::{
     metrics,
     net::{
         DualStackEpollSocket,
@@ -964,6 +1016,39 @@
 
 <span class="kw">pub fn </span>spawn(
     socket: socket2::Socket,
+    port_rx: tokio::sync::broadcast::Receiver&lt;u16&gt;,
+    shutdown: <span class="kw-2">&amp;mut </span><span class="kw">crate</span>::signal::ShutdownHandler,
+) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
+    <span class="kw">let </span>finished = shutdown.push(<span class="string">"qcmp"</span>);
+    <span class="kw">let </span>shutdown_rx = shutdown.shutdown_rx();
+
+    <span class="kw">let </span>_qcmp_thread = std::thread::Builder::new()
+        .name(<span class="string">"qcmp"</span>.into())
+        .spawn(<span class="kw">move </span>|| {
+            <span class="kw">let </span>runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .thread_name(<span class="string">"qcmp-worker"</span>)
+                .build()
+                .expect(<span class="string">"couldn't create tokio runtime in thread"</span>);
+
+            <span class="kw">let </span>res = runtime.block_on(<span class="kw">async move </span>{
+                <span class="kw">let </span>task = spawn_task(socket, port_rx, shutdown_rx)<span class="question-mark">?</span>;
+                drop(finished.send(task.<span class="kw">await</span>.wrap_err(<span class="string">"qcmp task error"</span>)));
+
+                <span class="prelude-val">Ok</span>::&lt;<span class="kw">_</span>, eyre::Report&gt;(())
+            });
+
+            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = res {
+                <span class="macro">tracing::error!</span>(%error, <span class="string">"qcmp thread failed with an error"</span>);
+            }
+        })
+        .expect(<span class="string">"failed to spawn qcmp thread"</span>);
+
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>spawn_task(
+    socket: socket2::Socket,
     <span class="kw-2">mut </span>port_rx: tokio::sync::broadcast::Receiver&lt;u16&gt;,
     <span class="kw-2">mut </span>shutdown_rx: tokio::sync::watch::Receiver&lt;()&gt;,
 ) -&gt; <span class="kw">crate</span>::Result&lt;tokio::task::JoinHandle&lt;()&gt;&gt; {
@@ -986,6 +1071,7 @@
                         <span class="kw">return</span>;
                     }
                     new_port = port_rx.recv() =&gt; {
+                        <span class="macro">tracing::info!</span>(change=<span class="question-mark">?</span>new_port, <span class="string">"received qcmp port change"</span>);
                         <span class="kw">match </span>new_port {
                             <span class="prelude-val">Ok</span>(new_port) =&gt; {
                                 <span class="comment">// Attempt to bind the new port
@@ -997,7 +1083,7 @@
                                     }
                                     <span class="prelude-val">Err</span>(error) =&gt; {
                                         <span class="macro">tracing::error!</span>(%error, old_port = port, new_port, <span class="string">"failed to bind QCMP to new port, continuing to use old port to respond to QCMP pings"</span>);
-                                        metrics::qcmp::errors_total(<span class="string">"failed to change port"</span>, <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo::EMPTY).inc();
+                                        metrics::qcmp::errors_total(<span class="string">"failed_port_change"</span>, <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo::EMPTY).inc();
                                     }
                                 }
                             }
@@ -1016,8 +1102,12 @@
                     }
                 };
 
-                <span class="kw">match </span>track_error(result, <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo::EMPTY) {
+                <span class="kw">match </span>track_error(result.map_err(Error::from), <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo::EMPTY) {
                     <span class="prelude-val">Ok</span>((size, source)) =&gt; {
+                        <span class="macro">tracing::debug!</span>(
+                            %source,
+                            <span class="string">"received QCMP ping"</span>,
+                        );
                         <span class="kw">let </span>received_at = UtcTimestamp::now();
                         <span class="kw">let </span>ip_entry = <span class="kw">crate</span>::net::maxmind_db::MaxmindDb::lookup(source.ip()).map(<span class="kw">crate</span>::net::maxmind_db::MetricsIpNetEntry::from);
                         <span class="kw">let </span>asn_info = <span class="kw">crate</span>::metrics::AsnInfo::from(ip_entry.as_ref());
@@ -1043,6 +1133,11 @@
                             metrics::qcmp::packets_total_unsupported(size, <span class="kw-2">&amp;</span>asn_info);
                             <span class="kw">continue</span>;
                         };
+                        <span class="macro">tracing::debug!</span>(
+                            %source,
+                            %nonce,
+                            <span class="string">"received QCMP ping"</span>,
+                        );
 
                         metrics::qcmp::packets_total_valid(size, <span class="kw-2">&amp;</span>asn_info);
                         Protocol::ping_reply(nonce, client_timestamp, received_at)
@@ -1050,10 +1145,11 @@
 
                         <span class="macro">tracing::debug!</span>(
                             %source,
+                            %nonce,
                             <span class="string">"sending QCMP pong"</span>,
                         );
 
-                        <span class="kw">match </span>track_error(socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await</span>, <span class="kw-2">&amp;</span>asn_info) {
+                        <span class="kw">match </span>track_error(socket.send_to(<span class="kw-2">&amp;</span>output_buf, source).<span class="kw">await</span>.map_err(Error::from), <span class="kw-2">&amp;</span>asn_info) {
                             <span class="prelude-val">Ok</span>(len) =&gt; {
                                 <span class="kw">if </span>len != output_buf.len() {
                                     <span class="macro">tracing::error!</span>(%source, <span class="string">"failed to send entire QCMP pong response, expected {} but only sent {len}"</span>, output_buf.len());
@@ -1075,12 +1171,14 @@
     ))
 }
 
-<span class="kw">fn </span>track_error&lt;T, E: std::fmt::Display&gt;(
-    result: <span class="prelude-ty">Result</span>&lt;T, E&gt;,
-    asn_info: <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo&lt;<span class="lifetime">'_</span>&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;T, E&gt; {
+<span class="kw">fn </span>track_error&lt;T&gt;(result: <span class="prelude-ty">Result</span>&lt;T&gt;, asn_info: <span class="kw-2">&amp;</span><span class="kw">crate</span>::metrics::AsnInfo&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;T&gt; {
     result.inspect_err(|error| {
-        <span class="kw">let </span>reason = error.to_string();
+        <span class="kw">let </span>reason = <span class="kw">match </span>error {
+            Error::UnknownVersion(version) =&gt; <span class="macro">format!</span>(<span class="string">"unknown_version: {}"</span>, version),
+            Error::LengthMismatch(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="string">"length_mismatch"</span>.into(),
+            Error::InvalidCommand(command) =&gt; <span class="macro">format!</span>(<span class="string">"invalid_command: {}"</span>, command),
+            Error::Io(e) =&gt; <span class="macro">format!</span>(<span class="string">"io: {}"</span>, e),
+        };
         metrics::qcmp::errors_total(<span class="kw-2">&amp;</span>reason, asn_info).inc();
     })
 }
@@ -1354,6 +1452,8 @@
     </span>LengthMismatch(u16, usize),
     <span class="attr">#[error(<span class="string">"unknown command code: {0}"</span>)]
     </span>InvalidCommand(u8),
+    <span class="attr">#[error(<span class="string">"io error: {0}"</span>)]
+    </span>Io(<span class="attr">#[from] </span>std::io::Error),
 }
 
 <span class="attr">#[cfg(test)]
@@ -1498,7 +1598,7 @@
 
         <span class="kw">let </span>(_tx, rx) = <span class="kw">crate</span>::signal::channel();
         <span class="kw">let </span>pc = <span class="kw">super</span>::port_channel();
-        spawn(socket, pc.subscribe(), rx).unwrap();
+        spawn_task(socket, pc.subscribe(), rx).unwrap();
 
         <span class="kw">let </span>delay = Duration::from_millis(<span class="number">50</span>);
         <span class="kw">let </span>node = QcmpMeasurement::with_artificial_delay(delay).unwrap();

@@ -785,10 +785,7 @@
 <a href="#784" id="784">784</a>
 <a href="#785" id="785">785</a>
 <a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a>
-<a href="#789" id="789">789</a>
-<a href="#790" id="790">790</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
+<a href="#787" id="787">787</a></pre></div><pre class="rust"><code><span class="kw">use </span>eyre::ContextCompat;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use crate</span>::{
@@ -1230,15 +1227,12 @@
             .qcmp_port()
             .context(<span class="string">"QCMP was enabled, but QCMP port was not inserted into typemap"</span>)<span class="question-mark">?</span>;
 
+        qcmp_port.store(<span class="self">self</span>.qcmp_port);
+
         <span class="macro">tracing::info!</span>(port=%<span class="self">self</span>.qcmp_port, <span class="string">"starting qcmp service"</span>);
         <span class="kw">let </span>qcmp = <span class="kw">crate</span>::net::raw_socket_with_reuse(<span class="self">self</span>.qcmp_port)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>join = <span class="kw">crate</span>::codec::qcmp::spawn(qcmp, qcmp_port.subscribe(), shutdown.shutdown_rx())<span class="question-mark">?</span>;
-        <span class="kw">let </span>finished = shutdown.push(<span class="string">"qcmp"</span>);
-        tokio::spawn(<span class="kw">async move </span>{
-            drop(join.<span class="kw">await</span>);
-            drop(finished.send(<span class="prelude-val">Ok</span>(())));
-        });
+        <span class="kw">crate</span>::codec::qcmp::spawn(qcmp, qcmp_port.subscribe(), shutdown)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }

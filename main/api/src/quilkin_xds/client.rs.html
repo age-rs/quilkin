@@ -704,7 +704,12 @@
 <a href="#703" id="703">703</a>
 <a href="#704" id="704">704</a>
 <a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1051,6 +1056,11 @@
                     }
 
                     is_healthy.store(<span class="bool-val">false</span>, Ordering::SeqCst);
+
+                    <span class="kw">if </span>shutdown.has_changed().is_ok_and(|b| b) {
+                        <span class="comment">// We are shutting down, just quit
+                        </span><span class="kw">return </span><span class="prelude-val">Ok</span>(());
+                    }
 
                     <span class="macro">tracing::debug!</span>(<span class="string">"lost connection to relay server, retrying"</span>);
                     <span class="kw">let </span>new_client = MdsClient::connect_with_backoff(<span class="kw-2">&amp;</span><span class="self">self</span>.management_servers)
