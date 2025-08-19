@@ -709,7 +709,47 @@
 <a href="#708" id="708">708</a>
 <a href="#709" id="709">709</a>
 <a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -731,7 +771,7 @@
     time::Duration,
 };
 
-<span class="kw">use </span>eyre::{Context, ContextCompat};
+<span class="kw">use </span>eyre::ContextCompat;
 <span class="kw">use </span>futures::StreamExt;
 <span class="kw">use </span>rand::Rng;
 <span class="kw">use </span>tonic::transport::{Endpoint, channel::Channel <span class="kw">as </span>TonicChannel};
@@ -749,6 +789,7 @@
         aggregated_discovery_service_client::AggregatedDiscoveryServiceClient,
     },
     generated::quilkin::relay::v1alpha1::aggregated_control_plane_discovery_service_client::AggregatedControlPlaneDiscoveryServiceClient,
+    metrics::{KIND_CLIENT, KIND_SERVER},
 };
 
 <span class="kw">type </span>AdsGrpcClient = AggregatedDiscoveryServiceClient&lt;TonicChannel&gt;;
@@ -1088,6 +1129,7 @@
         endpoints: <span class="kw-2">&amp;</span>[Endpoint],
         identifier: String,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>, tonic::Streaming&lt;DeltaDiscoveryResponse&gt;, Endpoint)&gt; {
+        <span class="kw">crate</span>::metrics::actions_total(KIND_CLIENT, <span class="string">"connect"</span>).inc();
         <span class="kw">if let </span><span class="prelude-val">Ok</span>((<span class="kw-2">mut </span>client, ep)) = MdsClient::connect_with_backoff(endpoints).<span class="kw">await </span>{
             <span class="kw">let </span>(req_tx, requests_rx) =
                 tokio::sync::mpsc::channel(<span class="number">100 </span><span class="comment">/*ResourceType::VARIANTS.len()*/</span>);
@@ -1155,6 +1197,7 @@
         subs: Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)&gt;,
         local: <span class="kw-2">&amp;</span><span class="kw">crate</span>::config::LocalVersions,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">crate</span>::metrics::actions_total(KIND_CLIENT, <span class="string">"refresh"</span>).inc();
         <span class="kw">for </span>(rt, names) <span class="kw">in </span>subs {
             <span class="kw">let </span>initial_resource_versions = local.get(rt).clone();
             <span class="self">self</span>.req_tx
@@ -1182,6 +1225,7 @@
     <span class="doccomment">/// Sends an n/ack "response" in response to the remote response
     </span><span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>send_response(<span class="kw-2">&amp;</span><span class="self">self</span>, response: DeltaDiscoveryRequest) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">crate</span>::metrics::actions_total(KIND_CLIENT, <span class="string">"respond"</span>).inc();
         <span class="self">self</span>.req_tx.send(response).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
@@ -1197,6 +1241,7 @@
         <span class="kw-2">mut </span>client: MdsGrpcClient,
         identifier: String,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>, tonic::Streaming&lt;DeltaDiscoveryRequest&gt;)&gt; {
+        <span class="kw">crate</span>::metrics::actions_total(KIND_SERVER, <span class="string">"connect"</span>).inc();
         <span class="kw">let </span>(res_tx, responses_rx) = tokio::sync::mpsc::channel(<span class="number">100</span>);
 
         res_tx
@@ -1217,6 +1262,7 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">async fn </span>send_response(<span class="kw-2">&amp;</span><span class="self">self</span>, res: DeltaDiscoveryResponse) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">crate</span>::metrics::actions_total(KIND_SERVER, <span class="string">"respond"</span>).inc();
         <span class="self">self</span>.res_tx.send(res).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
@@ -1241,6 +1287,7 @@
     </span>{
         <span class="prelude-val">Ok</span>(ds) =&gt; ds,
         <span class="prelude-val">Err</span>(err) =&gt; {
+            <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"connect"</span>).inc();
             <span class="macro">tracing::error!</span>(error = <span class="question-mark">?</span>err, <span class="string">"failed to acquire aggregated delta stream from management server"</span>);
             <span class="kw">return </span><span class="prelude-val">Err</span>(err);
         }
@@ -1249,26 +1296,37 @@
     <span class="kw">async fn </span>handle_first_response(
         stream: <span class="kw-2">&amp;mut </span>tonic::Streaming&lt;DeltaDiscoveryResponse&gt;,
         resources: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)])],
-    ) -&gt; eyre::Result&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)]&gt; {
+    ) -&gt; eyre::Result&lt;(String, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Vec&lt;String&gt;)])&gt; {
         <span class="kw">const </span>TIMEOUT: std::time::Duration = std::time::Duration::from_secs(<span class="number">30</span>);
 
         <span class="kw">match </span>tokio::time::timeout(TIMEOUT, stream.message()).<span class="kw">await </span>{
             <span class="prelude-val">Err</span>(_elapsed) =&gt; {
+                <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"timeout"</span>).inc();
                 <span class="macro">eyre::bail!</span>(<span class="string">"timed out after {TIMEOUT:?} waiting for first response"</span>);
             }
             <span class="prelude-val">Ok</span>(result) =&gt; {
                 <span class="kw">let </span><span class="prelude-val">Some</span>(first) = result<span class="question-mark">? </span><span class="kw">else </span>{
+                    <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"unexpected"</span>).inc();
                     <span class="macro">eyre::bail!</span>(<span class="string">"expected at least one response from the management server"</span>);
                 };
 
+                <span class="kw">let </span>control_plane_identifier = first
+                    .control_plane
+                    .as_ref()
+                    .map(|cp| cp.identifier.clone())
+                    .unwrap_or_default();
+
                 <span class="kw">if </span>first.type_url != <span class="string">"ignore-me" </span>{
+                    <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"unexpected"</span>).inc();
                     <span class="macro">tracing::warn!</span>(<span class="string">"expected `ignore-me` response from management server"</span>);
                 }
 
                 resources
                     .iter()
                     .find_map(|(vers, subs)| (<span class="kw-2">*</span>vers == first.system_version_info).then_some(<span class="kw-2">*</span>subs))
+                    .map(|rs| (control_plane_identifier, rs))
                     .with_context(|| {
+                        <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"no_resource"</span>).inc();
                         <span class="macro">format!</span>(
                             <span class="string">"failed to find resources with version `{}` to subscribe to"</span>,
                             first.system_version_info
@@ -1278,8 +1336,13 @@
         }
     }
 
-    <span class="kw">let </span>resource_subscriptions = <span class="kw">match </span>handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await </span>{
-        <span class="prelude-val">Ok</span>(rs) =&gt; rs,
+    <span class="kw">let </span>(<span class="kw-2">mut </span>control_plane, resource_subscriptions) = <span class="kw">match </span>handle_first_response(
+        <span class="kw-2">&amp;mut </span>stream,
+        resources,
+    )
+    .<span class="kw">await
+    </span>{
+        <span class="prelude-val">Ok</span>((id, rs)) =&gt; (id, rs),
         <span class="prelude-val">Err</span>(error) =&gt; {
             <span class="macro">tracing::error!</span>(%error, <span class="string">"failed to acquire matching resource subscriptions based on response from management sever"</span>);
             <span class="kw">return </span><span class="prelude-val">Err</span>(error);
@@ -1298,11 +1361,12 @@
         .refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
         .<span class="kw">await
     </span>{
+        <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"request_failed"</span>).inc();
         <span class="macro">tracing::error!</span>(error = <span class="question-mark">?</span>err, <span class="string">"failed to send initial resource requests"</span>);
         <span class="kw">return </span><span class="prelude-val">Err</span>(err);
     }
 
-    <span class="kw">let </span>id = identifier.clone();
+    <span class="kw">let </span>client_id = identifier.clone();
     <span class="kw">let </span>handle = tokio::task::spawn(
         <span class="kw">async move </span>{
             <span class="macro">tracing::trace!</span>(<span class="string">"starting xDS delta stream task"</span>);
@@ -1310,9 +1374,9 @@
             <span class="kw">let </span><span class="kw-2">mut </span>resource_subscriptions = resource_subscriptions;
 
             <span class="kw">loop </span>{
-                <span class="macro">tracing::info!</span>(<span class="string">"creating discovery response handler"</span>);
+                <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"creating discovery response handler"</span>);
                 <span class="kw">let </span><span class="kw-2">mut </span>response_stream = <span class="kw">crate</span>::config::handle_delta_discovery_responses(
-                    identifier.clone(),
+                    control_plane.clone(),
                     stream,
                     config.clone(),
                     local.clone(),
@@ -1320,7 +1384,7 @@
                     notifier.clone(),
                 );
 
-                <span class="macro">tracing::info!</span>(<span class="string">"entering xDS stream loop"</span>);
+                <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"entering xDS stream loop"</span>);
                 <span class="kw">loop </span>{
                     <span class="kw">let </span>next_response =
                         tokio::time::timeout(IDLE_REQUEST_INTERVAL, response_stream.next());
@@ -1336,30 +1400,40 @@
                             };
                             <span class="macro">tracing::trace!</span>(%node_id, <span class="string">"received delta response"</span>);
                             <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = ds.send_response(response).<span class="kw">await </span>{
+                                <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"ack_failed"</span>).inc();
                                 <span class="macro">tracing::error!</span>(%error, %node_id, <span class="string">"failed to ack delta response"</span>);
                             }
                             <span class="kw">continue</span>;
                         }
                         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error))) =&gt; {
                             <span class="kw">if </span><span class="kw">crate</span>::is_broken_pipe(<span class="kw-2">&amp;</span>error) {
+                                <span class="kw">crate</span>::metrics::actions_total(KIND_CLIENT, <span class="string">"remote_terminate"</span>)
+                                    .inc();
                                 <span class="macro">tracing::info!</span>(
+                                    %control_plane,
                                     endpoint = %connected_endpoint.uri(),
                                     <span class="string">"remoteterminated the connection"</span>,
                                 );
                             } <span class="kw">else </span>{
+                                <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"unknown"</span>).inc();
                                 <span class="macro">tracing::warn!</span>(%error, <span class="string">"xds stream error"</span>);
                             }
                             <span class="kw">break</span>;
                         }
                         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>) =&gt; {
-                            <span class="macro">tracing::warn!</span>(<span class="string">"xDS stream terminated"</span>);
+                            <span class="kw">crate</span>::metrics::actions_total(KIND_CLIENT, <span class="string">"terminate"</span>).inc();
+                            <span class="macro">tracing::warn!</span>(%control_plane, <span class="string">"xDS stream terminated"</span>);
                             <span class="kw">break</span>;
                         }
                         <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                             <span class="macro">tracing::debug!</span>(<span class="string">"exceeded idle request interval sending new requests"</span>);
-                            ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
+                            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = ds
+                                .refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
                                 .<span class="kw">await
-                                </span>.wrap_err(<span class="string">"refresh failed"</span>)<span class="question-mark">?</span>;
+                            </span>{
+                                <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"refresh"</span>).inc();
+                                <span class="kw">return </span><span class="prelude-val">Err</span>(error.wrap_err(<span class="string">"refresh failed"</span>));
+                            }
                         }
                     }
                 }
@@ -1373,21 +1447,23 @@
                 </span>local.clear(<span class="kw-2">&amp;</span>config, <span class="prelude-val">None</span>);
 
                 <span class="kw">loop </span>{
-                    <span class="macro">tracing::info!</span>(<span class="string">"Lost connection to xDS, retrying"</span>);
+                    <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"Lost connection to xDS, retrying"</span>);
                     <span class="kw">match </span>DeltaClientStream::connect(<span class="kw-2">&amp;</span>endpoints, identifier.clone()).<span class="kw">await </span>{
                         <span class="prelude-val">Ok</span>(res) =&gt; {
                             (ds, stream, connected_endpoint) = res;
                         }
                         <span class="prelude-val">Err</span>(error) =&gt; {
+                            <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"connect"</span>).inc();
                             <span class="macro">tracing::error!</span>(%error, <span class="string">"failed to establish connection"</span>);
                             <span class="kw">continue</span>;
                         }
                     }
 
                     <span class="kw">match </span>handle_first_response(<span class="kw-2">&amp;mut </span>stream, resources).<span class="kw">await </span>{
-                        <span class="prelude-val">Ok</span>(rs) =&gt; {
+                        <span class="prelude-val">Ok</span>((id, rs)) =&gt; {
+                            control_plane = id;
                             resource_subscriptions = rs;
-                            <span class="macro">tracing::info!</span>(<span class="string">"received first response"</span>);
+                            <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"received first response"</span>);
                             <span class="kw">break</span>;
                         }
                         <span class="prelude-val">Err</span>(error) =&gt; {
@@ -1396,13 +1472,17 @@
                     }
                 }
 
-                ds.refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = ds
+                    .refresh(<span class="kw-2">&amp;</span>identifier, resource_subscriptions.to_vec(), <span class="kw-2">&amp;</span>local)
                     .<span class="kw">await
-                    </span>.wrap_err(<span class="string">"refresh failed"</span>)<span class="question-mark">?</span>;
-                <span class="macro">tracing::info!</span>(<span class="string">"xDS connection refreshed"</span>);
+                </span>{
+                    <span class="kw">crate</span>::metrics::errors_total(KIND_CLIENT, <span class="string">"refresh"</span>).inc();
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(error.wrap_err(<span class="string">"refresh failed"</span>));
+                }
+                <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"xDS connection refreshed"</span>);
             }
         }
-        .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"xds_client_stream"</span>, id)),
+        .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"xds_client_stream"</span>, client_id)),
     );
 
     <span class="prelude-val">Ok</span>(handle)

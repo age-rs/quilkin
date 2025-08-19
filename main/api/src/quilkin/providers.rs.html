@@ -699,7 +699,23 @@
 <a href="#698" id="698">698</a>
 <a href="#699" id="699">699</a>
 <a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -948,6 +964,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         config: FiltersAndClusters,
         health_check: <span class="kw-2">&amp;</span>AtomicBool,
+        locality: <span class="prelude-ty">Option</span>&lt;<span class="kw">crate</span>::net::endpoint::Locality&gt;,
     ) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>Future&lt;Output = <span class="kw">crate</span>::Result&lt;()&gt;&gt; + <span class="lifetime">'static</span>&gt; {
         <span class="kw">let </span>endpoint_tokens = <span class="self">self
             </span>.endpoint_tokens
@@ -1031,7 +1048,7 @@
             <span class="string">"setting endpoints"
         </span>);
         config.clusters.modify(|clusters| {
-            clusters.insert(<span class="prelude-val">None</span>, <span class="prelude-val">None</span>, endpoints);
+            clusters.insert(<span class="prelude-val">None</span>, locality, endpoints);
         });
 
         health_check.store(<span class="bool-val">true</span>, Ordering::SeqCst);
@@ -1287,6 +1304,17 @@
             || <span class="self">self</span>.static_enabled()
     }
 
+    <span class="doccomment">/// Adds the required typemap entries to the config depending on what providers are enabled
+    </span><span class="kw">pub fn </span>init_config(<span class="kw-2">&amp;</span><span class="self">self</span>, config: <span class="kw-2">&amp;mut </span>config::Config) {
+        <span class="kw">use </span><span class="kw">crate</span>::config::insert_default;
+
+        <span class="comment">// TODO are these required by all providers or only some?
+        </span><span class="kw">if </span><span class="self">self</span>.any_provider_enabled() {
+            insert_default::&lt;<span class="kw">crate</span>::filters::FilterChain&gt;(<span class="kw-2">&amp;mut </span>config.dyn_cfg.typemap);
+            insert_default::&lt;<span class="kw">crate</span>::net::ClusterMap&gt;(<span class="kw-2">&amp;mut </span>config.dyn_cfg.typemap);
+        }
+    }
+
     <span class="kw">pub fn </span>spawn_providers(
         <span class="self">self</span>,
         config: <span class="kw-2">&amp;</span>Arc&lt;config::Config&gt;,
@@ -1344,6 +1372,7 @@
                 {
                     <span class="kw">let </span>path = <span class="self">self</span>.fs_path.clone();
                     <span class="kw">let </span>health_check = health_check.clone();
+                    <span class="kw">let </span>locality = locality.clone();
 
                     <span class="kw">move </span>|| {
                         fs::watch(
@@ -1363,7 +1392,10 @@
             .flatten()
         {
             health_check.store(<span class="bool-val">true</span>, Ordering::SeqCst);
-            providers.spawn(<span class="self">self</span>.spawn_static_provider(fc, <span class="kw-2">&amp;</span>health_check).unwrap());
+            providers.spawn(
+                <span class="self">self</span>.spawn_static_provider(fc, <span class="kw-2">&amp;</span>health_check, locality.clone())
+                    .unwrap(),
+            );
         }
 
         <span class="macro">assert!</span>(

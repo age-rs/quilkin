@@ -371,7 +371,13 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -630,9 +636,15 @@
         <span class="macro">tracing::debug!</span>(cli = <span class="question-mark">?</span><span class="self">self</span>, <span class="string">"config parameters"</span>);
 
         <span class="kw">let </span>locality = <span class="self">self</span>.locality.locality();
-        <span class="kw">let </span>config =
-            <span class="self">self</span>.service
-                .read_config(<span class="kw-2">&amp;</span><span class="self">self</span>.config, <span class="self">self</span>.locality.icao_code, locality.clone())<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>config = <span class="kw">crate</span>::Config::new(
+            <span class="self">self</span>.service.id.clone(),
+            <span class="self">self</span>.locality.icao_code,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.providers,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.service,
+        );
+        config.read_config(<span class="kw-2">&amp;</span><span class="self">self</span>.config, locality.clone())<span class="question-mark">?</span>;
+        <span class="kw">let </span>config = Arc::new(config);
 
         <span class="kw">let </span>ready = Arc::&lt;std::sync::atomic::AtomicBool&gt;::default();
         <span class="kw">let </span>shutdown_handler = <span class="kw">crate</span>::signal::spawn_handler();

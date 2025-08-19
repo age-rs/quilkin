@@ -838,7 +838,23 @@
 <a href="#837" id="837">837</a>
 <a href="#838" id="838">838</a>
 <a href="#839" id="839">839</a>
-<a href="#840" id="840">840</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::unimplemented)]
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a></pre></div><pre class="rust"><code><span class="attr">#![allow(clippy::unimplemented)]
 
 </span><span class="kw">use </span>quilkin::{
     Config,
@@ -1202,17 +1218,23 @@
 
                 <span class="kw">let </span>(shutdown, shutdown_rx) = quilkin::signal::channel();
 
+                <span class="kw">let </span>providers = quilkin::Providers::default().fs().fs_path(path);
                 <span class="kw">let </span>svc = quilkin::Service::default()
                     .xds()
                     .xds_port(xds_port)
                     .mds()
                     .mds_port(mds_port);
-                <span class="kw">let </span>config = Arc::new(svc.build_config(Default::default()).unwrap());
+
+                <span class="kw">let </span>config = Arc::new(<span class="kw">crate</span>::Config::new(
+                    <span class="prelude-val">Some</span>(<span class="string">"test-relay"</span>.into()),
+                    Default::default(),
+                    <span class="kw-2">&amp;</span>providers,
+                    <span class="kw-2">&amp;</span>svc,
+                ));
+
                 <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
-                <span class="kw">let </span>provider_task = quilkin::Providers::default()
-                    .fs()
-                    .fs_path(path)
-                    .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>, shutdown_rx.clone());
+                <span class="kw">let </span>provider_task =
+                    providers.spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>, shutdown_rx.clone());
                 <span class="kw">let </span>task = svc
                     .spawn_services(
                         <span class="kw-2">&amp;</span>config,
@@ -1279,17 +1301,22 @@
 
                 <span class="kw">let </span>config_path = path.clone();
                 <span class="kw">let </span>svc = quilkin::Service::default().qcmp().qcmp_port(port);
-                <span class="kw">let </span>config = Arc::new(
-                    svc.build_config(apc.icao_code)
-                        .expect(<span class="string">"failed to build agent config"</span>),
-                );
-                <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
-                <span class="kw">let </span>acfg = config.clone();
-                <span class="kw">let </span>provider_task = quilkin::Providers::default()
+                <span class="kw">let </span>providers = quilkin::Providers::default()
                     .fs()
                     .fs_path(path)
-                    .grpc_push_endpoints(relay_servers)
-                    .spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>, shutdown_rx.clone());
+                    .grpc_push_endpoints(relay_servers);
+
+                <span class="kw">let </span>config = Arc::new(<span class="kw">crate</span>::Config::new(
+                    <span class="prelude-val">Some</span>(<span class="string">"test-agent"</span>.into()),
+                    apc.icao_code,
+                    <span class="kw-2">&amp;</span>providers,
+                    <span class="kw-2">&amp;</span>svc,
+                ));
+
+                <span class="kw-2">*</span>config.dyn_cfg.id.lock() = spc.name.into();
+                <span class="kw">let </span>acfg = config.clone();
+                <span class="kw">let </span>provider_task =
+                    providers.spawn_providers(<span class="kw-2">&amp;</span>config, &lt;<span class="kw">_</span>&gt;::default(), <span class="prelude-val">None</span>, shutdown_rx.clone());
                 <span class="kw">let </span>task = svc
                     .spawn_services(
                         <span class="kw-2">&amp;</span>config,
@@ -1345,7 +1372,12 @@
                     .phoenix_port(phoenix_port)
                     .termination_timeout(<span class="prelude-val">None</span>);
 
-                <span class="kw">let </span>config = Arc::new(svc.build_config(Default::default()).unwrap());
+                <span class="kw">let </span>config = Arc::new(<span class="kw">crate</span>::Config::new(
+                    <span class="prelude-val">Some</span>(<span class="string">"test-proxy"</span>.into()),
+                    Default::default(),
+                    <span class="kw-2">&amp;</span>Default::default(),
+                    <span class="kw-2">&amp;</span>svc,
+                ));
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(cfg) = ppc.config {
                     <span class="kw">if </span>!cfg.clusters.is_empty() {
