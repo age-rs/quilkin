@@ -743,13 +743,7 @@
 <a href="#742" id="742">742</a>
 <a href="#743" id="743">743</a>
 <a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#745" id="745">745</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -1439,12 +1433,6 @@
                 }
 
                 is_healthy.store(<span class="bool-val">false</span>, Ordering::SeqCst);
-
-                <span class="comment">// Assume a new server we might connect to has completely different
-                // state from the previous one, so get rid of our current state
-                // and get a full refresh from the new relay, as well as
-                // getting rid of any state the previously connected server gave us
-                </span>local.clear(<span class="kw-2">&amp;</span>config, <span class="prelude-val">None</span>);
 
                 <span class="kw">loop </span>{
                     <span class="macro">tracing::info!</span>(%control_plane, <span class="string">"Lost connection to xDS, retrying"</span>);
