@@ -925,7 +925,20 @@
 <a href="#924" id="924">924</a>
 <a href="#925" id="925">925</a>
 <a href="#926" id="926">926</a>
-<a href="#927" id="927">927</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -1155,8 +1168,10 @@
 <span class="attr">#[derive(Copy, Clone)]
 #[cfg_attr(test, derive(Debug))]
 </span><span class="kw">pub struct </span>DistanceMeasure {
-    <span class="kw">pub </span>incoming: DurationNanos,
-    <span class="kw">pub </span>outgoing: DurationNanos,
+    <span class="doccomment">/// Latency for a packet travelling to a given target (incoming for the target)
+    </span><span class="kw">pub </span>incoming: DurationNanos,
+    <span class="doccomment">/// Latency for a packet arriving from a given target (outgoing for the target)
+    </span><span class="kw">pub </span>outgoing: DurationNanos,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>DistanceMeasure {
@@ -1511,6 +1526,7 @@
 
 <span class="kw">impl </span>Node {
     <span class="kw">fn </span>new(icao_code: IcaoCode) -&gt; <span class="self">Self </span>{
+        <span class="kw">crate</span>::metrics::phoenix_distance_error_estimate(icao_code).set(<span class="number">1.0</span>);
         Node {
             coordinates: <span class="prelude-val">None</span>,
             icao_code,
@@ -1520,18 +1536,26 @@
 
     <span class="kw">fn </span>increase_error_estimate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.error_estimate += <span class="number">0.1</span>;
+        <span class="kw">crate</span>::metrics::phoenix_distance_error_estimate(<span class="self">self</span>.icao_code).set(<span class="self">self</span>.error_estimate);
     }
 
     <span class="kw">fn </span>adjust_coordinates(<span class="kw-2">&amp;mut </span><span class="self">self</span>, distance: DistanceMeasure) {
         <span class="kw">let </span>incoming = distance.incoming.nanos() <span class="kw">as </span>f64;
         <span class="kw">let </span>outgoing = distance.outgoing.nanos() <span class="kw">as </span>f64;
 
+        <span class="kw">crate</span>::metrics::phoenix_measurement_seconds(<span class="self">self</span>.icao_code, <span class="string">"incoming"</span>)
+            .observe(distance.incoming.duration().as_secs_f64());
+        <span class="kw">crate</span>::metrics::phoenix_measurement_seconds(<span class="self">self</span>.icao_code, <span class="string">"outgoing"</span>)
+            .observe(distance.outgoing.duration().as_secs_f64());
+
         <span class="kw">let </span><span class="prelude-val">Some</span>(coordinates) = <span class="kw-2">&amp;mut </span><span class="self">self</span>.coordinates <span class="kw">else </span>{
             <span class="kw">let </span>coordinates = Coordinates {
                 x: incoming,
                 y: outgoing,
             };
-            <span class="kw">crate</span>::metrics::phoenix_distance(<span class="self">self</span>.icao_code, <span class="self">self</span>.error_estimate)
+            <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"x"</span>).set(coordinates.x);
+            <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"y"</span>).set(coordinates.y);
+            <span class="kw">crate</span>::metrics::phoenix_distance(<span class="self">self</span>.icao_code)
                 .set(Coordinates::ORIGIN.distance_to(<span class="kw-2">&amp;</span>coordinates));
             <span class="self">self</span>.coordinates = <span class="prelude-val">Some</span>(coordinates);
             <span class="kw">return</span>;
@@ -1542,7 +1566,9 @@
         coordinates.x = (coordinates.x + (incoming * weight)) / <span class="number">2.0</span>;
         coordinates.y = (coordinates.y + (outgoing * weight)) / <span class="number">2.0</span>;
 
-        <span class="kw">crate</span>::metrics::phoenix_distance(<span class="self">self</span>.icao_code, <span class="self">self</span>.error_estimate)
+        <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"x"</span>).set(coordinates.x);
+        <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"y"</span>).set(coordinates.y);
+        <span class="kw">crate</span>::metrics::phoenix_distance(<span class="self">self</span>.icao_code)
             .set(Coordinates::ORIGIN.distance_to(coordinates));
     }
 }
