@@ -1033,7 +1033,8 @@
 <a href="#1032" id="1032">1032</a>
 <a href="#1033" id="1033">1033</a>
 <a href="#1034" id="1034">1034</a>
-<a href="#1035" id="1035">1035</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -1653,6 +1654,7 @@
     <span class="kw">fn </span>increase_error_estimate(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.error_estimate += <span class="number">0.1</span>;
         <span class="self">self</span>.consecutive_errors += <span class="number">1</span>;
+        <span class="kw">crate</span>::metrics::phoenix_measurement_errors(<span class="self">self</span>.icao_code).inc();
         <span class="kw">crate</span>::metrics::phoenix_distance_error_estimate(<span class="self">self</span>.icao_code).set(<span class="self">self</span>.error_estimate);
     }
 
@@ -2018,7 +2020,7 @@
         tokio::time::sleep(Duration::from_millis(<span class="number">150</span>)).<span class="kw">await</span>;
 
         <span class="kw">let </span>measurement =
-            <span class="kw">crate</span>::codec::qcmp::QcmpMeasurement::with_artificial_delay(Duration::from_millis(<span class="number">50</span>))
+            <span class="kw">crate</span>::codec::qcmp::QcmpTransceiver::with_artificial_delay(Duration::from_millis(<span class="number">50</span>))
                 .unwrap();
 
         <span class="kw">let </span>phoenix = Phoenix::builder(measurement)

@@ -1097,7 +1097,7 @@
         <span class="kw">let </span>finalizer = <span class="kw">crate</span>::net::phoenix::spawn(
             phoenix,
             datacenters.clone(),
-            <span class="kw">crate</span>::net::phoenix::Phoenix::new(<span class="kw">crate</span>::codec::qcmp::QcmpMeasurement::new()<span class="question-mark">?</span>),
+            <span class="kw">crate</span>::net::phoenix::Phoenix::new(<span class="kw">crate</span>::codec::qcmp::QcmpTransceiver::new()<span class="question-mark">?</span>),
             shutdown.shutdown_rx(),
         )<span class="question-mark">?</span>;
 
