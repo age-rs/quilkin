@@ -1034,7 +1034,13 @@
 <a href="#1033" id="1033">1033</a>
 <a href="#1034" id="1034">1034</a>
 <a href="#1035" id="1035">1035</a>
-<a href="#1036" id="1036">1036</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright 2024 Google LLC All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -1634,16 +1640,19 @@
     icao_code: IcaoCode,
     error_estimate: f64,
     consecutive_errors: u64,
+    alpha: f64,
 }
 
 <span class="kw">impl </span>Node {
     <span class="kw">fn </span>new(icao_code: IcaoCode) -&gt; <span class="self">Self </span>{
         <span class="kw">crate</span>::metrics::phoenix_distance_error_estimate(icao_code).set(<span class="number">1.0</span>);
+        <span class="kw">crate</span>::metrics::phoenix_coordinates_alpha(icao_code).set(<span class="number">1.0</span>);
         Node {
             coordinates: <span class="prelude-val">None</span>,
             icao_code,
             error_estimate: <span class="number">1.0</span>,
             consecutive_errors: <span class="number">0</span>,
+            alpha: <span class="number">1.0</span>,
         }
     }
 
@@ -1656,6 +1665,8 @@
         <span class="self">self</span>.consecutive_errors += <span class="number">1</span>;
         <span class="kw">crate</span>::metrics::phoenix_measurement_errors(<span class="self">self</span>.icao_code).inc();
         <span class="kw">crate</span>::metrics::phoenix_distance_error_estimate(<span class="self">self</span>.icao_code).set(<span class="self">self</span>.error_estimate);
+        <span class="self">self</span>.alpha = (<span class="self">self</span>.alpha - <span class="number">0.1</span>).clamp(<span class="number">0.2</span>, <span class="number">1.0</span>);
+        <span class="kw">crate</span>::metrics::phoenix_coordinates_alpha(<span class="self">self</span>.icao_code).set(<span class="self">self</span>.alpha);
     }
 
     <span class="kw">fn </span>adjust_coordinates(<span class="kw-2">&amp;mut </span><span class="self">self</span>, distance: DistanceMeasure) {
@@ -1681,10 +1692,11 @@
             <span class="kw">return</span>;
         };
 
-        <span class="kw">let </span>weight = <span class="self">self</span>.error_estimate;
-
-        coordinates.x = (coordinates.x + (incoming * weight)) / <span class="number">2.0</span>;
-        coordinates.y = (coordinates.y + (outgoing * weight)) / <span class="number">2.0</span>;
+        <span class="comment">// Exponentially weighted moving average
+        </span>coordinates.x = <span class="self">self</span>.alpha * incoming + (<span class="number">1.0 </span>- <span class="self">self</span>.alpha) * coordinates.x;
+        coordinates.y = <span class="self">self</span>.alpha * outgoing + (<span class="number">1.0 </span>- <span class="self">self</span>.alpha) * coordinates.y;
+        <span class="self">self</span>.alpha = (<span class="self">self</span>.alpha + <span class="number">0.05</span>).clamp(<span class="number">0.2</span>, <span class="number">1.0</span>);
+        <span class="kw">crate</span>::metrics::phoenix_coordinates_alpha(<span class="self">self</span>.icao_code).set(<span class="self">self</span>.alpha);
 
         <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"x"</span>).set(coordinates.x);
         <span class="kw">crate</span>::metrics::phoenix_coordinates(<span class="self">self</span>.icao_code, <span class="string">"y"</span>).set(coordinates.y);
