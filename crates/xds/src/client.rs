@@ -49,6 +49,8 @@ pub type MdsClient = Client<MdsGrpcClient>;
 
 pub(crate) const IDLE_REQUEST_INTERVAL: Duration = Duration::from_secs(30);
 
+const REQUEST_BUFFER_SIZE: usize = 100;
+
 #[tonic::async_trait]
 pub trait ServiceClient: Clone + Sized + Send + 'static {
     type Request: Clone + Send + Sync + Sized + 'static + std::fmt::Debug;
@@ -378,13 +380,12 @@ impl DeltaClientStream {
     ) -> Result<(Self, tonic::Streaming<DeltaDiscoveryResponse>, Endpoint)> {
         crate::metrics::actions_total(KIND_CLIENT, "connect").inc();
         if let Ok((mut client, ep)) = MdsClient::connect_with_backoff(endpoints).await {
-            let (req_tx, requests_rx) =
-                tokio::sync::mpsc::channel(100 /*ResourceType::VARIANTS.len()*/);
+            let (dcs, requests_rx) = Self::new();
 
             // Since we are doing exploratory requests to see if the remote endpoint supports delta streams, we unfortunately
             // need to actually send something before the full roundtrip occurs. This can be removed once delta discovery
             // is fully rolled out
-            req_tx
+            dcs.req_tx
                 .send(DeltaDiscoveryRequest {
                     node: Some(Node {
                         id: identifier.clone(),
@@ -401,19 +402,18 @@ impl DeltaClientStream {
                 .in_current_span()
                 .await
             {
-                return Ok((Self { req_tx }, stream.into_inner(), ep));
+                return Ok((dcs, stream.into_inner(), ep));
             }
         }
 
         let (mut client, ep) = AdsClient::connect_with_backoff(endpoints).await?;
 
-        let (req_tx, requests_rx) =
-            tokio::sync::mpsc::channel(100 /*ResourceType::VARIANTS.len()*/);
+        let (dcs, requests_rx) = Self::new();
 
         // Since we are doing exploratory requests to see if the remote endpoint supports delta streams, we unfortunately
         // need to actually send something before the full roundtrip occurs. This can be removed once delta discovery
         // is fully rolled out
-        req_tx
+        dcs.req_tx
             .send(DeltaDiscoveryRequest {
                 node: Some(Node {
                     id: identifier,
@@ -429,16 +429,16 @@ impl DeltaClientStream {
             .delta_aggregated_resources(tokio_stream::wrappers::ReceiverStream::new(requests_rx))
             .in_current_span()
             .await?;
-        Ok((Self { req_tx }, stream.into_inner(), ep))
+        Ok((dcs, stream.into_inner(), ep))
     }
 
     pub(crate) fn new() -> (Self, tokio::sync::mpsc::Receiver<DeltaDiscoveryRequest>) {
-        let (req_tx, requests_rx) = tokio::sync::mpsc::channel(1);
+        let (req_tx, requests_rx) = tokio::sync::mpsc::channel(REQUEST_BUFFER_SIZE);
         (Self { req_tx }, requests_rx)
     }
 
     #[inline]
-    pub(crate) async fn refresh(
+    pub(crate) fn refresh(
         &self,
         identifier: &str,
         subs: Vec<(&'static str, Vec<String>)>,
@@ -447,33 +447,42 @@ impl DeltaClientStream {
         crate::metrics::actions_total(KIND_CLIENT, "refresh").inc();
         for (rt, names) in subs {
             let initial_resource_versions = local.get(rt).clone();
-            self.req_tx
-                .send(DeltaDiscoveryRequest {
-                    node: Some(Node {
-                        id: identifier.to_owned(),
-                        user_agent_name: "quilkin".into(),
-                        ..Node::default()
-                    }),
-                    type_url: (*rt).to_owned(),
-                    resource_names_subscribe: names.clone(),
-                    initial_resource_versions,
-                    // We (currently) never unsubscribe from resources, since we
-                    // never actually subscribe to particular ones in the first place
-                    resource_names_unsubscribe: Vec::new(),
-                    response_nonce: "".into(),
-                    error_detail: None,
-                })
-                .await?;
+            let refresh_request = DeltaDiscoveryRequest {
+                node: Some(Node {
+                    id: identifier.to_owned(),
+                    user_agent_name: "quilkin".into(),
+                    ..Node::default()
+                }),
+                type_url: (*rt).to_owned(),
+                resource_names_subscribe: names.clone(),
+                initial_resource_versions,
+                // We (currently) never unsubscribe from resources, since we
+                // never actually subscribe to particular ones in the first place
+                resource_names_unsubscribe: Vec::new(),
+                response_nonce: "".into(),
+                error_detail: None,
+            };
+            self.send_request(refresh_request)?;
         }
 
         Ok(())
     }
 
-    /// Sends an n/ack "response" in response to the remote response
+    /// Sends an n/ack "request" in response to the remote response
     #[inline]
-    pub(crate) async fn send_response(&self, response: DeltaDiscoveryRequest) -> Result<()> {
-        crate::metrics::actions_total(KIND_CLIENT, "respond").inc();
-        self.req_tx.send(response).await?;
+    pub(crate) fn ack_response(&self, ack_request: DeltaDiscoveryRequest) -> Result<()> {
+        // Save 10% or at least 10 spots of the request buffer for refresh requests
+        if self.req_tx.capacity() < (REQUEST_BUFFER_SIZE / 10).max(10) {
+            Err(eyre::eyre!("request buffer congested, dropping ACK/NACK"))
+        } else {
+            self.send_request(ack_request)
+        }
+    }
+
+    #[inline]
+    fn send_request(&self, request: DeltaDiscoveryRequest) -> Result<()> {
+        crate::metrics::actions_total(KIND_CLIENT, "send_request").inc();
+        self.req_tx.try_send(request)?;
         Ok(())
     }
 }
@@ -489,7 +498,7 @@ impl DeltaServerStream {
         identifier: String,
     ) -> Result<(Self, tonic::Streaming<DeltaDiscoveryRequest>)> {
         crate::metrics::actions_total(KIND_SERVER, "connect").inc();
-        let (res_tx, responses_rx) = tokio::sync::mpsc::channel(100);
+        let (res_tx, responses_rx) = tokio::sync::mpsc::channel(REQUEST_BUFFER_SIZE);
 
         res_tx
             .send(DeltaDiscoveryResponse {
@@ -526,19 +535,16 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
     notifier: Option<tokio::sync::mpsc::UnboundedSender<String>>,
     resources: &'static [(&'static str, &'static [(&'static str, Vec<String>)])],
 ) -> eyre::Result<tokio::task::JoinHandle<Result<()>>> {
-    let (mut ds, mut stream, mut connected_endpoint) = match DeltaClientStream::connect(
-        &endpoints,
-        identifier.clone(),
-    )
-    .await
-    {
-        Ok(ds) => ds,
-        Err(err) => {
-            crate::metrics::errors_total(KIND_CLIENT, "connect").inc();
-            tracing::error!(error = ?err, "failed to acquire aggregated delta stream from management server");
-            return Err(err);
-        }
-    };
+    let (mut client, mut response_stream, mut connected_endpoint) =
+        DeltaClientStream::connect(&endpoints, identifier.clone())
+            .await
+            .inspect_err(|error| {
+                crate::metrics::errors_total(KIND_CLIENT, "connect").inc();
+                tracing::error!(
+                    ?error,
+                    "failed to acquire aggregated delta stream from management server"
+                );
+            })?;
 
     async fn handle_first_response(
         stream: &mut tonic::Streaming<DeltaDiscoveryResponse>,
@@ -584,7 +590,7 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
     }
 
     let (mut control_plane, resource_subscriptions) = match handle_first_response(
-        &mut stream,
+        &mut response_stream,
         resources,
     )
     .await
@@ -604,10 +610,7 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
     let local = Arc::new(crate::config::LocalVersions::new(
         resource_subscriptions.iter().map(|(s, _)| *s),
     ));
-    if let Err(err) = ds
-        .refresh(&identifier, resource_subscriptions.to_vec(), &local)
-        .await
-    {
+    if let Err(err) = client.refresh(&identifier, resource_subscriptions.to_vec(), &local) {
         crate::metrics::errors_total(KIND_CLIENT, "request_failed").inc();
         tracing::error!(error = ?err, "failed to send initial resource requests");
         return Err(err);
@@ -617,15 +620,15 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
     let handle = tokio::task::spawn(
         async move {
             tracing::trace!("starting xDS delta stream task");
-            let mut stream = stream;
+            let mut response_stream = response_stream;
             let mut resource_subscriptions = resource_subscriptions;
 
             is_healthy.store(true, Ordering::SeqCst);
             loop {
                 tracing::info!(%control_plane, "creating discovery response handler");
-                let mut response_stream = crate::config::handle_delta_discovery_responses(
+                let mut ack_request_stream = crate::config::handle_delta_discovery_responses(
                     control_plane.clone(),
-                    stream,
+                    response_stream,
                     config.clone(),
                     local.clone(),
                     None,
@@ -634,18 +637,18 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
 
                 tracing::info!(%control_plane, "entering xDS stream loop");
                 loop {
-                    let next_response =
-                        tokio::time::timeout(IDLE_REQUEST_INTERVAL, response_stream.next());
+                    let next_ack_request =
+                        tokio::time::timeout(IDLE_REQUEST_INTERVAL, ack_request_stream.next());
 
-                    match next_response.await {
-                        Ok(Some(Ok(response))) => {
-                            let node_id = if let Some(node) = &response.node {
+                    match next_ack_request.await {
+                        Ok(Some(Ok(ack_request))) => {
+                            let node_id = if let Some(node) = &ack_request.node {
                                 node.id.clone()
                             } else {
                                 "unknown".into()
                             };
                             tracing::trace!(%node_id, "received delta response");
-                            if let Err(error) = ds.send_response(response).await {
+                            if let Err(error) = client.ack_response(ack_request) {
                                 crate::metrics::errors_total(KIND_CLIENT, "ack_failed").inc();
                                 tracing::error!(%error, %node_id, "failed to ack delta response");
                             }
@@ -673,12 +676,11 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
                         }
                         Err(_) => {
                             tracing::debug!("exceeded idle request interval sending new requests");
-                            if let Err(error) = ds
-                                .refresh(&identifier, resource_subscriptions.to_vec(), &local)
-                                .await
+                            if let Err(error) =
+                                client.refresh(&identifier, resource_subscriptions.to_vec(), &local)
                             {
                                 crate::metrics::errors_total(KIND_CLIENT, "refresh").inc();
-                                return Err(error.wrap_err("refresh failed"));
+                                tracing::error!(?error, "refresh failed");
                             }
                         }
                     }
@@ -690,7 +692,7 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
                     tracing::info!(%control_plane, "Lost connection to xDS, retrying");
                     match DeltaClientStream::connect(&endpoints, identifier.clone()).await {
                         Ok(res) => {
-                            (ds, stream, connected_endpoint) = res;
+                            (client, response_stream, connected_endpoint) = res;
                         }
                         Err(error) => {
                             crate::metrics::errors_total(KIND_CLIENT, "connect").inc();
@@ -699,7 +701,7 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
                         }
                     }
 
-                    match handle_first_response(&mut stream, resources).await {
+                    match handle_first_response(&mut response_stream, resources).await {
                         Ok((id, rs)) => {
                             control_plane = id;
                             resource_subscriptions = rs;
@@ -712,9 +714,8 @@ pub async fn delta_subscribe<C: crate::config::Configuration>(
                     }
                 }
 
-                if let Err(error) = ds
-                    .refresh(&identifier, resource_subscriptions.to_vec(), &local)
-                    .await
+                if let Err(error) =
+                    client.refresh(&identifier, resource_subscriptions.to_vec(), &local)
                 {
                     crate::metrics::errors_total(KIND_CLIENT, "refresh").inc();
                     return Err(error.wrap_err("refresh failed"));
