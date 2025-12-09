@@ -489,7 +489,6 @@ impl Config {
                 Ok(file) => break file,
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                     tracing::debug!(path = %path.display(), "config path not found");
-                    continue;
                 }
                 Err(err) => {
                     tracing::error!(path = %path.display(), error = ?err, "failed to read path");
@@ -903,16 +902,11 @@ impl Config {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Serialize, JsonSchema, PartialEq, Default)]
 pub enum Version {
     #[serde(rename = "v1alpha1")]
+    #[default]
     V1Alpha1,
-}
-
-impl Default for Version {
-    fn default() -> Self {
-        Self::V1Alpha1
-    }
 }
 
 pub(crate) fn default_typemap() -> ConfigMap {
