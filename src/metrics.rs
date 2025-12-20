@@ -23,6 +23,8 @@ use prometheus::{
 
 pub use prometheus::Result;
 
+pub mod http;
+
 /// "event" is used as a label for Metrics that can apply to both Filter
 /// `read` and `write` executions.
 pub const DIRECTION_LABEL: &str = "event";
@@ -42,6 +44,69 @@ pub fn registry() -> &'static Registry {
     static REGISTRY: Lazy<Registry> = Lazy::new(Registry::new);
 
     &REGISTRY
+}
+
+fn registry2() -> &'static std::sync::RwLock<prometheus_client::registry::Registry> {
+    static PROMETHEUS_CLIENT_REGISTRY: Lazy<
+        std::sync::RwLock<prometheus_client::registry::Registry>,
+    > = Lazy::new(|| std::sync::RwLock::new(<_>::default()));
+
+    &PROMETHEUS_CLIENT_REGISTRY
+}
+
+pub fn with_registry<F>(func: F)
+where
+    F: FnOnce(std::sync::RwLockReadGuard<'_, prometheus_client::registry::Registry>),
+{
+    let guard = match registry2().read() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::error!("recovered from poisoned rwlock");
+            poisoned.into_inner()
+        }
+    };
+    func(guard);
+}
+
+pub fn with_mut_registry<F>(func: F)
+where
+    F: FnOnce(std::sync::RwLockWriteGuard<'_, prometheus_client::registry::Registry>),
+{
+    let guard = match registry2().write() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::error!("recovered from poisoned rwlock");
+            poisoned.into_inner()
+        }
+    };
+    func(guard);
+}
+
+static INFO_APP_ID: once_cell::sync::OnceCell<String> = once_cell::sync::OnceCell::new();
+
+pub fn register_metrics(registry: &mut prometheus_client::registry::Registry, id: String) {
+    use prometheus_client::metrics::{family::Family, gauge::ConstGauge};
+    INFO_APP_ID.set(id).expect("APP_ID has already been set");
+
+    // TODO this should be a prometheus_client::metrics::info::Info but that metric type is new
+    // and not guaranteed to be widely supported by scrapers
+    let quilkin_info_family =
+        Family::<Vec<(&str, &str)>, ConstGauge>::new_with_constructor(|| ConstGauge::new(1));
+    registry.register(
+        "quilkin_info",
+        "Static information about the quilkin instance",
+        quilkin_info_family.clone(),
+    );
+    drop(quilkin_info_family.get_or_create(&vec![
+        ("id", INFO_APP_ID.get().unwrap().as_str()),
+        ("version", clap::crate_version!()),
+        (
+            "commit",
+            crate::net::endpoint::metadata::build::GIT_COMMIT_HASH.unwrap_or("none"),
+        ),
+    ]));
+
+    http::register_metrics(registry);
 }
 
 /// Start the histogram bucket at a quarter of a millisecond, as number below a millisecond are
@@ -69,40 +134,6 @@ pub(crate) fn leader_election(is_leader: bool) {
     });
 
     METRIC.set(is_leader as _);
-}
-
-pub(crate) mod http {
-    use super::*;
-
-    pub(crate) fn http_connections(port: &str) -> IntGauge {
-        static METRIC: Lazy<IntGaugeVec> = Lazy::new(|| {
-            prometheus::register_int_gauge_vec_with_registry! {
-                prometheus::opts! {
-                    "http_connections",
-                    "Number of active http connections",
-                },
-                &["port"],
-                registry(),
-            }
-            .unwrap()
-        });
-        METRIC.with_label_values(&[port])
-    }
-
-    pub(crate) fn http_inflight_requests(port: &str) -> IntGauge {
-        static METRIC: Lazy<IntGaugeVec> = Lazy::new(|| {
-            prometheus::register_int_gauge_vec_with_registry! {
-                prometheus::opts! {
-                    "http_inflight_requests",
-                    "Number of inflight http requests",
-                },
-                &["port"],
-                registry(),
-            }
-            .unwrap()
-        });
-        METRIC.with_label_values(&[port])
-    }
 }
 
 pub(crate) mod k8s {
@@ -392,21 +423,6 @@ pub(crate) fn game_traffic_task_closed() -> &'static IntCounter {
     });
 
     &GAME_TRAFFIC_TASK_CLOSED
-}
-
-pub(crate) fn phoenix_requests() -> &'static IntCounter {
-    static PHOENIX_REQUESTS: Lazy<IntCounter> = Lazy::new(|| {
-        prometheus::register_int_counter_with_registry! {
-            prometheus::opts! {
-                "quilkin_phoenix_requests",
-                "The amount of phoenix requests",
-            },
-            registry(),
-        }
-        .unwrap()
-    });
-
-    &PHOENIX_REQUESTS
 }
 
 pub(crate) fn phoenix_measurement_seconds(
