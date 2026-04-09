@@ -1,2 +1,2 @@
 [workspace]
-semver_check = false
+git_only = true
