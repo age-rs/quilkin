@@ -20,7 +20,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: true
-          persist-credentials: false
       - &install-rust
         name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -50,7 +49,6 @@ jobs:
         uses: release-plz/action@v0.5
         with:
           command: release-pr
-          manifest_path: /home/runner/work/quilkin/quilkin/Cargo.toml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
