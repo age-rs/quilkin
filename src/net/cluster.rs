@@ -185,7 +185,7 @@ impl EndpointSet {
     /// Creates a new endpoint set with the provided version hash, skipping
     /// calculation of it
     ///
-    /// This hash _must_ be calculated with [`Self::update`] to be consistent
+    /// This hash _must_ be calculated with `update` to be consistent
     /// across machines
     #[inline]
     pub fn with_version(endpoints: BTreeSet<Endpoint>, hash: EndpointSetVersion) -> Self {

@@ -413,7 +413,7 @@ impl Config {
         config
     }
 
-    /// Creates and initializes a new Arc<Config>
+    /// Creates and initializes a new `Arc<Config>`
     ///
     /// Spawns a tokio task as a side effect that will be stopped when the cancellation token is
     /// cancelled. The token _will_ be cancelled when Config is dropped, so make sure to pass in a

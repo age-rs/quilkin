@@ -738,7 +738,7 @@ impl PubsubContext {
         })
     }
 
-    /// Creates a subscription for the specified [`PubusbContext`]
+    /// Creates a subscription for the specified [`PubsubContext`]
     ///
     /// Database mutations that match the query specified in the params will
     /// cause subscription events to be emitted to the receiver

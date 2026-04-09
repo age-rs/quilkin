@@ -5,7 +5,7 @@ use std::{
 
 /// The kind of address, such as Domain Name or IP address. **Note** that
 /// the `FromStr` implementation doesn't actually validate that the name is
-/// resolvable. Use [`EndpointAddress`] for complete address validation.
+/// resolvable.
 #[derive(Debug, PartialEq, Clone, PartialOrd, Eq, Hash, Ord)]
 pub enum AddressKind {
     Name(String),

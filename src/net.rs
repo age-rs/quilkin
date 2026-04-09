@@ -200,7 +200,7 @@ cfg_if::cfg_if! {
     }
 }
 
-/// The same as [`DualStackSocket`] but uses epoll instead of uring.
+/// The same as [`DualStackLocalSocket`] but uses epoll instead of uring.
 #[derive(Debug)]
 pub struct DualStackEpollSocket {
     socket: tokio::net::UdpSocket,

@@ -34,6 +34,7 @@ name = "agones"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "chrono",
  "either",
  "futures",
  "k8s-openapi",

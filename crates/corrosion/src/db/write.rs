@@ -183,7 +183,7 @@ impl<'s, const N: usize> Server<'s, N> {
 
     /// Create a statement to remove the peer as a contributor to the server
     ///
-    /// This method won't immediately delete the server like [`Self::remove_immediately`]
+    /// This method won't immediately delete the server like [`Self::remove_immediate`]
     /// but will update it to remove the specified peer as a contributor. The server
     /// can be removed later if it no longer has contributors after a specified
     /// time period.

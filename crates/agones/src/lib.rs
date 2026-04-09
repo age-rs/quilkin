@@ -40,7 +40,6 @@ use k8s_openapi::{
         apis::meta::v1::{LabelSelector, ObjectMeta},
         util::intstr::IntOrString,
     },
-    chrono,
 };
 use kube::{
     Api, Resource, ResourceExt,

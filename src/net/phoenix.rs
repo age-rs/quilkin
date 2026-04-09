@@ -681,7 +681,7 @@ impl<M: Measurement> Builder<M> {
 /// The network coordinates of a node in the phoenix system.
 ///
 /// Each field represents one element of the d-dimensional coordinate vector
-/// (currently d=1, see [`DIMENSION`]). Predicted one-way latency from node A
+/// (currently d=1). Predicted one-way latency from node A
 /// to node B is the dot product `A.outgoing · B.incoming`.
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub struct Coordinates {
