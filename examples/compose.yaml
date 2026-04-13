@@ -2,7 +2,9 @@ services:
   quilkin:
     build:
       context: ..
-    command: ["proxy", "--provider.static.endpoints", "echo:9001"]
+    command:
+      - --service.udp
+      - --provider.static.endpoints=echo:9001
     ports:
       - "7777:7777/udp"
     depends_on:

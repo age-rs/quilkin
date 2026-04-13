@@ -26,7 +26,7 @@ use std::{
     },
 };
 
-use crate::{config, metrics::provider_task_failures_total, providers::k8s::EventProcessor};
+use crate::{config, metrics::provider_task_failures_total, providers::k8s::EventProcessor, net::EndpointAddress};
 use eyre::Context;
 use futures::TryStreamExt;
 
@@ -160,7 +160,7 @@ pub struct Providers {
         env = "QUILKIN_PROVIDERS_STATIC_ENDPOINTS",
         value_delimiter = ','
     )]
-    endpoints: Vec<SocketAddr>,
+    endpoints: Vec<EndpointAddress>,
     /// Assigns dynamic tokens to each address in the `--to` argument
     ///
     /// Format is `<number of unique tokens>:<length of token suffix for each packet>`
@@ -352,11 +352,11 @@ impl Providers {
                 self.endpoints
                     .iter()
                     .enumerate()
-                    .map(|(ind, sa)| {
+                    .map(|(ind, addr)| {
                         let start = ind as u64 * count;
 
                         crate::net::endpoint::Endpoint::with_metadata(
-                            (*sa).into(),
+                            addr.clone(),
                             crate::net::endpoint::Metadata {
                                 tokens: (start..(start + count))
                                     .map(|i| i.to_le_bytes()[..length].to_vec())
