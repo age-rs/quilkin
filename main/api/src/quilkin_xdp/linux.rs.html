@@ -99,10 +99,10 @@
 <a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">pub fn </span>load(external_port: u16, qcmp_port: u16) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, LoadError&gt; {
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span><span class="kw-2">mut </span>loader = aya::EbpfLoader::new();
 <a href=#101 id=101 data-nosnippet>101</a>        <span class="kw">let </span>external_port_no = external_port.to_be();
-<a href=#102 id=102 data-nosnippet>102</a>        loader.set_global(<span class="string">"EXTERNAL_PORT_NO"</span>, <span class="kw-2">&amp;</span>external_port_no, <span class="bool-val">true</span>);
+<a href=#102 id=102 data-nosnippet>102</a>        loader.override_global(<span class="string">"EXTERNAL_PORT_NO"</span>, <span class="kw-2">&amp;</span>external_port_no, <span class="bool-val">true</span>);
 <a href=#103 id=103 data-nosnippet>103</a>
 <a href=#104 id=104 data-nosnippet>104</a>        <span class="kw">let </span>qcmp_port_no = qcmp_port.to_be();
-<a href=#105 id=105 data-nosnippet>105</a>        loader.set_global(<span class="string">"QCMP_PORT_NO"</span>, <span class="kw-2">&amp;</span>qcmp_port_no, <span class="bool-val">true</span>);
+<a href=#105 id=105 data-nosnippet>105</a>        loader.override_global(<span class="string">"QCMP_PORT_NO"</span>, <span class="kw-2">&amp;</span>qcmp_port_no, <span class="bool-val">true</span>);
 <a href=#106 id=106 data-nosnippet>106</a>
 <a href=#107 id=107 data-nosnippet>107</a>        <span class="comment">// We exploit the fact that Linux by default does not assign ephemeral
 <a href=#108 id=108 data-nosnippet>108</a>        // ports in the full range allowed by IANA, but we want to sanity check
@@ -185,7 +185,7 @@
 <a href=#185 id=185 data-nosnippet>185</a>    <span class="kw">pub fn </span>attach(
 <a href=#186 id=186 data-nosnippet>186</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#187 id=187 data-nosnippet>187</a>        nic: NicIndex,
-<a href=#188 id=188 data-nosnippet>188</a>        flags: aya::programs::XdpFlags,
+<a href=#188 id=188 data-nosnippet>188</a>        mode: aya::programs::xdp::XdpMode,
 <a href=#189 id=189 data-nosnippet>189</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;aya::programs::xdp::XdpLinkId, aya::programs::ProgramError&gt; {
 <a href=#190 id=190 data-nosnippet>190</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(_error) = aya_log::EbpfLogger::init(<span class="kw-2">&amp;mut </span><span class="self">self</span>.bpf) {
 <a href=#191 id=191 data-nosnippet>191</a>            <span class="comment">// Would be good to enable this if we do end up adding log messages to
@@ -204,7 +204,7 @@
 <a href=#204 id=204 data-nosnippet>204</a>            .expect(<span class="string">"'all_queues' is not an xdp program"</span>);
 <a href=#205 id=205 data-nosnippet>205</a>        program.load()<span class="question-mark">?</span>;
 <a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>        program.attach_to_if_index(nic.into(), flags)
+<a href=#207 id=207 data-nosnippet>207</a>        program.attach_to_if_index(nic.into(), mode)
 <a href=#208 id=208 data-nosnippet>208</a>    }
 <a href=#209 id=209 data-nosnippet>209</a>
 <a href=#210 id=210 data-nosnippet>210</a>    <span class="kw">pub fn </span>detach(
