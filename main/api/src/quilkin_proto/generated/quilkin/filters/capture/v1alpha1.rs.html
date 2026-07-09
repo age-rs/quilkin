@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">pub struct </span>Capture {
 <a href=#4 id=4 data-nosnippet>4</a>    <span class="attr">#[prost(message, optional, tag = <span class="string">"1"</span>)]
 <a href=#5 id=5 data-nosnippet>5</a>    </span><span class="kw">pub </span>metadata_key: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-<a href=#6 id=6 data-nosnippet>6</a>    <span class="attr">#[prost(oneof = <span class="string">"capture::Strategy"</span>, tags = <span class="string">"2, 3, 4"</span>)]
+<a href=#6 id=6 data-nosnippet>6</a>    <span class="attr">#[prost(oneof = <span class="string">"capture::Strategy"</span>, tags = <span class="string">"2, 3, 4, 5"</span>)]
 <a href=#7 id=7 data-nosnippet>7</a>    </span><span class="kw">pub </span>strategy: ::core::option::Option&lt;capture::Strategy&gt;,
 <a href=#8 id=8 data-nosnippet>8</a>}
 <a href=#9 id=9 data-nosnippet>9</a><span class="doccomment">/// Nested message and enum types in `Capture`.
@@ -27,14 +27,21 @@
 <a href=#27 id=27 data-nosnippet>27</a>        <span class="attr">#[prost(message, optional, tag = <span class="string">"1"</span>)]
 <a href=#28 id=28 data-nosnippet>28</a>        </span><span class="kw">pub </span>regex: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
 <a href=#29 id=29 data-nosnippet>29</a>    }
-<a href=#30 id=30 data-nosnippet>30</a>    <span class="attr">#[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
-<a href=#31 id=31 data-nosnippet>31</a>    </span><span class="kw">pub enum </span>Strategy {
-<a href=#32 id=32 data-nosnippet>32</a>        <span class="attr">#[prost(message, tag = <span class="string">"2"</span>)]
-<a href=#33 id=33 data-nosnippet>33</a>        </span>Prefix(Prefix),
-<a href=#34 id=34 data-nosnippet>34</a>        <span class="attr">#[prost(message, tag = <span class="string">"3"</span>)]
-<a href=#35 id=35 data-nosnippet>35</a>        </span>Suffix(Suffix),
-<a href=#36 id=36 data-nosnippet>36</a>        <span class="attr">#[prost(message, tag = <span class="string">"4"</span>)]
-<a href=#37 id=37 data-nosnippet>37</a>        </span>Regex(Regex),
-<a href=#38 id=38 data-nosnippet>38</a>    }
-<a href=#39 id=39 data-nosnippet>39</a>}
+<a href=#30 id=30 data-nosnippet>30</a>    <span class="attr">#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
+<a href=#31 id=31 data-nosnippet>31</a>    </span><span class="kw">pub struct </span>QuicDcid {
+<a href=#32 id=32 data-nosnippet>32</a>        <span class="attr">#[prost(uint32, tag = <span class="string">"1"</span>)]
+<a href=#33 id=33 data-nosnippet>33</a>        </span><span class="kw">pub </span>size: u32,
+<a href=#34 id=34 data-nosnippet>34</a>    }
+<a href=#35 id=35 data-nosnippet>35</a>    <span class="attr">#[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+<a href=#36 id=36 data-nosnippet>36</a>    </span><span class="kw">pub enum </span>Strategy {
+<a href=#37 id=37 data-nosnippet>37</a>        <span class="attr">#[prost(message, tag = <span class="string">"2"</span>)]
+<a href=#38 id=38 data-nosnippet>38</a>        </span>Prefix(Prefix),
+<a href=#39 id=39 data-nosnippet>39</a>        <span class="attr">#[prost(message, tag = <span class="string">"3"</span>)]
+<a href=#40 id=40 data-nosnippet>40</a>        </span>Suffix(Suffix),
+<a href=#41 id=41 data-nosnippet>41</a>        <span class="attr">#[prost(message, tag = <span class="string">"4"</span>)]
+<a href=#42 id=42 data-nosnippet>42</a>        </span>Regex(Regex),
+<a href=#43 id=43 data-nosnippet>43</a>        <span class="attr">#[prost(message, tag = <span class="string">"5"</span>)]
+<a href=#44 id=44 data-nosnippet>44</a>        </span>QuicDcid(QuicDcid),
+<a href=#45 id=45 data-nosnippet>45</a>    }
+<a href=#46 id=46 data-nosnippet>46</a>}
 </code></pre></div></section></main></body></html>
