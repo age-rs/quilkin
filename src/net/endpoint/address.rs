@@ -53,6 +53,10 @@ impl EndpointAddress {
     };
 }
 
+/// Shared with the async path so [`EndpointAddress::to_socket_addr`] can return
+/// resolved addresses without touching the runtime.
+static DNS_CACHE: Lazy<crate::collections::ttl::TtlMap<String, IpAddr>> = Lazy::new(<_>::default);
+
 impl EndpointAddress {
     /// Returns the port for the endpoint address, or `0` if no port
     /// was specified.
@@ -62,13 +66,22 @@ impl EndpointAddress {
 
     /// Returns the socket address for the endpoint, resolving any DNS entries
     /// if present.
+    ///
+    /// Blocks on cache misses. In async contexts, prefer [`Self::to_socket_addr_async`],
+    /// which also populates the cache used by this method.
     #[inline]
     pub fn to_socket_addr(&self) -> std::io::Result<SocketAddr> {
         let ip = match &self.host {
             AddressKind::Ip(ip) => SocketAddr::from((*ip, self.port)),
-            AddressKind::Name(_name) => {
-                let handle = tokio::runtime::Handle::current();
-                handle.block_on(self.to_socket_addr_async())?
+            AddressKind::Name(name) => {
+                if let Some(ip) = DNS_CACHE.get(name) {
+                    SocketAddr::from((**ip, self.port))
+                } else {
+                    let handle = tokio::runtime::Handle::current();
+                    // block_on panics on a runtime thread; block_in_place hands off
+                    // other tasks so the nested wait is safe.
+                    tokio::task::block_in_place(|| handle.block_on(self.to_socket_addr_async()))?
+                }
             }
         };
 
@@ -82,10 +95,7 @@ impl EndpointAddress {
         let ip = match &self.host {
             AddressKind::Ip(ip) => *ip,
             AddressKind::Name(name) => {
-                static CACHE: Lazy<crate::collections::ttl::TtlMap<String, IpAddr>> =
-                    Lazy::new(<_>::default);
-
-                if let Some(ip) = CACHE.get(name) {
+                if let Some(ip) = DNS_CACHE.get(name) {
                     **ip
                 } else {
                     let lookup_res = DNS.lookup_ip(&**name).await;
@@ -112,7 +122,7 @@ impl EndpointAddress {
                         }
                     };
 
-                    CACHE.insert(name.clone(), ip);
+                    DNS_CACHE.insert(name.clone(), ip);
                     ip
                 }
             }
@@ -409,5 +419,39 @@ mod tests {
             }
             AddressKind::Ip(_) => panic!("shouldn't be an ip"),
         };
+    }
+
+    // Regression test for https://github.com/EmbarkStudios/quilkin/issues/1436.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn to_socket_addr_from_async_context_does_not_panic() {
+        let addr = EndpointAddress {
+            host: AddressKind::Name("regression-test-1436.invalid".into()),
+            port: 7000,
+        };
+
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| addr.to_socket_addr()));
+
+        assert!(
+            result.is_ok(),
+            "to_socket_addr() panicked when called from within a tokio runtime"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn to_socket_addr_serves_cached_name_without_blocking() {
+        let name = "regression-test-1436-cached.invalid";
+        DNS_CACHE.insert(name.to_string(), IpAddr::V4(Ipv4Addr::new(203, 0, 113, 42)));
+
+        let addr = EndpointAddress {
+            host: AddressKind::Name(name.into()),
+            port: 7000,
+        };
+
+        let socket_addr = addr.to_socket_addr().unwrap();
+        assert_eq!(
+            socket_addr,
+            SocketAddr::from((IpAddr::V4(Ipv4Addr::new(203, 0, 113, 42)), 7000))
+        );
     }
 }
