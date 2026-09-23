@@ -989,7 +989,7 @@ dependencies = [
 
 [[package]]
 name = "corrosion-tests"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -3932,7 +3932,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "arc-swap",
  "async-stream",
@@ -4082,7 +4082,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-macros"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4091,7 +4091,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-proto"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "prost",
  "prost-types",
@@ -4101,7 +4101,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-system"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "axum",
  "futures",
@@ -4116,7 +4116,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-types"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "compact_str",
  "data-encoding",
@@ -4127,7 +4127,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-xdp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aya",
  "aya-log",
@@ -4139,7 +4139,7 @@ dependencies = [
 
 [[package]]
 name = "quilkin-xds"
-version = "0.10.1"
+version = "0.11.0"
 dependencies = [
  "async-stream",
  "eyre",

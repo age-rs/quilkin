@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0](https://github.com/age-rs/quilkin/compare/quilkin-xds-v0.10.1...quilkin-xds-v0.11.0) - 2026-09-23
+
+### Added
+
+- *(metrics)* add more metrics around traffic
+
+### Other
+
+- *(rust)* update dependencies
+
 ## [0.10.1](https://github.com/EmbarkStudios/quilkin/compare/quilkin-xds-v0.10.0...quilkin-xds-v0.10.1) - 2026-05-26
 
 ### Other
